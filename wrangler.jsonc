@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // Worker name — this becomes <name>.<your-subdomain>.workers.dev
+  "name": "website-for-x-growth",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "services": [
+    {
+      // Lets the Worker call itself (used by OpenNext for caching/revalidation)
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "website-for-x-growth"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}

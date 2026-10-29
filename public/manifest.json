@@ -1,0 +1,29 @@
+{
+  "name": "Growth Studio",
+  "short_name": "Growth Studio",
+  "description": "Free browser-based image editor for creating professional graphics. Transform screenshots with backgrounds, animations, 3D effects, and video export.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1a1a1a",
+  "theme_color": "#059669",
+  "icons": [
+    {
+      "src": "/icon",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "/apple-icon",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ],
+  "categories": ["design", "graphics", "productivity"],
+  "screenshots": [],
+  "prefer_related_applications": false
+}
