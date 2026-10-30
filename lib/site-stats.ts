@@ -1,25 +1,17 @@
 /**
- * Visitor count shown as social proof in the site header ("8,900+ users").
+ * Live visit count shown in the site header ("1,234 visits").
  *
- * Update VISITS_LAST_30_DAYS from your Cloudflare analytics ("Visits · last 30
- * days"), or set NEXT_PUBLIC_VISITS_30D as a build variable to change it
- * without editing code. The figure is always rounded *down*, so the badge
- * never overstates real traffic. Set it to 0 to hide it.
+ * Visits are measured by Cloudflare Web Analytics (cookie-free, bots mostly
+ * filtered out) and totalled since LAUNCH_DATE by /api/stats. Nothing here is
+ * a made-up number: until the API answers, the header shows no count.
  */
-export const VISITS_LAST_30_DAYS = 8917;
 
-export function visitsLast30Days(): number {
-  const fromEnv = Number(process.env.NEXT_PUBLIC_VISITS_30D);
-  return Number.isFinite(fromEnv) && fromEnv > 0 ? fromEnv : VISITS_LAST_30_DAYS;
-}
+/** Public Web Analytics beacon token (safe to commit: it is visible in page source). */
+export const CF_BEACON_TOKEN =
+  process.env.NEXT_PUBLIC_CF_BEACON_TOKEN || "984b612482024d248567da5715f215c5";
 
-/** Rounded-down number used by the header pill, e.g. 8917 -> 8900. */
-export function roundedVisits(): number {
-  const n = visitsLast30Days();
-  if (n < 100) return Math.floor(n);
-  const step = n < 10_000 ? 100 : 1_000;
-  return Math.floor(n / step) * step;
-}
+/** Visits are counted from this moment (UTC). */
+export const LAUNCH_DATE = "2026-10-29T00:00:00Z";
 
 /** Word shown after the number in the header pill. */
-export const HEADER_COUNT_NOUN = "users";
+export const HEADER_COUNT_NOUN = "visits";

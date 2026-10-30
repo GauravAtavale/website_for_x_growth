@@ -55,7 +55,8 @@ All are environment variables; leave unset to disable.
 | `NEXT_PUBLIC_GA_ID` | Google Analytics 4 ID (`G-...`) |
 | `NEXT_PUBLIC_POSTHOG_KEY` / `NEXT_PUBLIC_POSTHOG_HOST` | PostHog analytics |
 | `NEXT_PUBLIC_ADSENSE_CLIENT` | AdSense publisher ID (`ca-pub-...`), shown only on content pages |
-| `NEXT_PUBLIC_VISITS_30D` | Count shown as "8,900+ users" in the header (default in `lib/site-stats.ts`; rounded down) |
+| `CF_API_TOKEN` (secret) | Cloudflare API token with **Account Analytics: Read**; powers the live visit count in the header |
+| `CF_ACCOUNT_ID`, `CF_WA_SITE_TAG` | Optional; pin the account and Web Analytics site if auto-detection fails |
 | `SCREENSHOT_API_URL` | Screenshot service for "capture a website" (defaults to Microlink's free tier) |
 
 `NEXT_PUBLIC_*` values are baked in at build time, so set them as build variables.

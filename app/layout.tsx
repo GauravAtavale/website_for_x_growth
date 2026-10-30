@@ -38,6 +38,7 @@ import { PathTracker } from "@/components/landing/GoBackButton";
 import { AdFreeRouteLinks } from "@/components/AdFreeRouteLinks";
 import { getRootJsonLd } from "@/lib/seo/json-ld";
 import { ADSENSE_CLIENT } from "@/components/AdSenseScript";
+import { CF_BEACON_TOKEN } from "@/lib/site-stats";
 
 // Your own Google Analytics 4 measurement ID (G-...). Leave unset to disable.
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID || "";
@@ -458,6 +459,14 @@ export default async function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(rootJsonLd) }}
         />
+        {/* Cloudflare Web Analytics: cookie-free visit counting that feeds the header count. */}
+        {CF_BEACON_TOKEN ? (
+          <Script
+            src="https://static.cloudflareinsights.com/beacon.min.js"
+            data-cf-beacon={JSON.stringify({ token: CF_BEACON_TOKEN })}
+            strategy="afterInteractive"
+          />
+        ) : null}
         {GA_ID ? (
           <>
             <Script
