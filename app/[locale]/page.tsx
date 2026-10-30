@@ -7,7 +7,7 @@ import {
   Image02Icon,
   RotateClockwiseIcon,
   LaptopPhoneSyncIcon,
-  NewTwitterIcon,
+  SmartPhone01Icon,
 } from "hugeicons-react";
 import { Navigation } from "@/components/landing/Navigation";
 import { Footer } from "@/components/landing/Footer";
@@ -81,8 +81,6 @@ const CODE_LINES: [string, string | undefined][][] = [
   [["}", SYNTAX.punctuation]],
 ];
 
-const STORE_HEADLINES = ["Plan your week", "Stay on track", "Share progress"];
-
 function ScreenshotPreview(): React.JSX.Element {
   return (
     <div
@@ -134,6 +132,42 @@ function ConvertPreview(): React.JSX.Element {
         <div className={cn(tile, "rotate-6 transition-transform duration-300 motion-safe:group-hover:rotate-3")}>
           <div className="mb-auto h-10 rounded" style={{ background: gradientColors.orange_pink_dark }} />
           <span className="mt-2 rounded bg-emerald-600 px-1.5 py-0.5 text-center text-[11px] font-bold text-white">WEBP</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function XBannerPreview(): React.JSX.Element {
+  return (
+    <div
+      className="flex h-full items-center justify-center px-3"
+      style={{ background: "linear-gradient(140deg, #0f172a, #1e293b)" }}
+    >
+      <div
+        className="w-[300px] shrink-0 scale-[0.3] overflow-hidden rounded-xl bg-[#16181c] shadow-[0_24px_48px_-16px_rgba(0,0,0,0.6)] ring-1 ring-white/10 transition-transform duration-300 ease-out sm:scale-[0.5] md:scale-[0.62] lg:scale-[0.74] motion-safe:group-hover:-translate-y-1 motion-reduce:transition-none"
+        style={{ fontFamily: INTER }}
+      >
+        {/* 3:1 header, like an X profile */}
+        <div
+          className="relative flex aspect-[3/1] flex-col items-center justify-center"
+          style={{ background: "linear-gradient(135deg, #f43f5e, #fb923c)" }}
+        >
+          <span
+            aria-hidden="true"
+            className="absolute inset-0 opacity-25"
+            style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1px)", backgroundSize: "10px 10px" }}
+          />
+          <p className="relative text-[15px] font-bold leading-tight text-white">Building in public</p>
+          <p className="relative mt-0.5 text-[8px] text-white/85">AI, products, and lessons from shipping</p>
+        </div>
+        <div className="relative px-3 pb-3 pt-7">
+          <div
+            className="absolute -top-6 left-3 size-12 rounded-full ring-[3px] ring-[#16181c]"
+            style={{ background: gradientColors.orange_pink_dark }}
+          />
+          <p className="text-[11px] font-semibold text-white">Your Name</p>
+          <p className="text-[9px] text-neutral-400">@yourhandle</p>
         </div>
       </div>
     </div>
@@ -249,41 +283,6 @@ function TweetPreview(): React.JSX.Element {
   );
 }
 
-function StorePreview(): React.JSX.Element {
-  return (
-    <div
-      className="flex h-full items-center justify-center gap-2 overflow-hidden px-3 sm:items-end sm:gap-3 sm:pt-6"
-      style={{ background: gradientColors.store_raycast }}
-    >
-      {STORE_HEADLINES.map((headline, index) => (
-        <div
-          key={headline}
-          className={cn(
-            "-mb-6 flex w-[54px] shrink-0 flex-col items-center gap-2 transition-transform duration-300 ease-out sm:w-[64px] lg:w-[72px] motion-reduce:transition-none",
-            index === 1
-              ? "-translate-y-3 motion-safe:group-hover:-translate-y-5"
-              : "motion-safe:group-hover:-translate-y-1",
-          )}
-        >
-          <p className="text-center text-[9px] font-semibold leading-tight text-white">
-            {headline}
-          </p>
-          <div className="h-[118px] w-full rounded-t-[14px] bg-white p-1.5 pt-2 ring-[3px] ring-black">
-            <div className="mx-auto h-1.5 w-6 rounded-full bg-black" />
-            <div className="mt-3 space-y-1.5 px-1">
-              <div className="h-1.5 w-3/4 rounded-full bg-neutral-800" />
-              <div className="h-1 w-full rounded-full bg-neutral-200" />
-              <div className="h-1 w-5/6 rounded-full bg-neutral-200" />
-              <div className="mt-2 h-8 rounded-md bg-neutral-100" />
-              <div className="h-1 w-2/3 rounded-full bg-neutral-200" />
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 /** Rendered once at build time; the same renderer powers the QR tool itself. */
 const QR_PREVIEW_SVG = renderQrSvg(
   "https://x.com/GauravAtavale",
@@ -336,11 +335,11 @@ const CHOICES = [
     preview: <TweetPreview />,
   },
   {
-    href: "/store-screenshots",
-    title: "App Store screenshots",
-    description: "Phone frames and layouts for your app.",
-    action: "Design your listing",
-    preview: <StorePreview />,
+    href: "/x-banner-maker",
+    title: "X banner",
+    description: "A 1500×500 header for your X profile.",
+    action: "Make a banner",
+    preview: <XBannerPreview />,
   },
   {
     href: "/qr-code-generator",
@@ -378,7 +377,7 @@ const QUICK_TOOLS = [
   { href: "/crop-image", label: "Crop", icon: CropIcon },
   { href: "/rotate-image", label: "Rotate", icon: RotateClockwiseIcon },
   { href: "/mockup-generator", label: "Mockup generator", icon: LaptopPhoneSyncIcon },
-  { href: "/x-banner-maker", label: "X banner", icon: NewTwitterIcon },
+  { href: "/store-screenshots", label: "App Store screenshots", icon: SmartPhone01Icon },
 ];
 
 const IMAGE_HANDLING = [
