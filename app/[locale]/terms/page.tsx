@@ -31,7 +31,7 @@ export default function TermsPage() {
           Terms & Conditions
         </h1>
         <p className="mb-12 text-sm text-muted-foreground">
-          Last updated: September 27, 2026
+          Last updated: October 30, 2026
         </p>
 
         <div className="space-y-8">
@@ -128,21 +128,16 @@ export default function TermsPage() {
               className="mb-3 text-xl font-semibold tracking-[-0.02em] text-foreground"
               style={{ fontFamily: INTER }}
             >
-              5. Advertising and Third-Party Services
+              5. Third-Party Services
             </h2>
-            <p className="mb-3 leading-relaxed text-muted-foreground">
-              The Service is free to use and is supported by ads served by
-              Google AdSense. Ads are provided by third parties, and we are not
-              responsible for the products or services they promote. You agree
-              not to click ads artificially, use automated tools to generate ad
-              impressions or clicks, or encourage others to do so.
-            </p>
             <p className="leading-relaxed text-muted-foreground">
-              Some features rely on third-party services, such as Microlink for
-              URL screenshots and X for tweet imports, and guides link to
-              external websites. Those services and sites are governed by their
-              own terms and privacy policies. How ads, analytics, and cookies
-              work on this site is explained in our{" "}
+              The Service is free to use and runs on Cloudflare. Some features
+              rely on third-party services, such as Microlink for URL
+              screenshots, X for post imports and sharing, and Hugging Face for
+              the background-removal model, and guides link to external
+              websites. Those services and sites are governed by their own terms
+              and privacy policies. How analytics and cookies work on this site
+              is explained in our{" "}
               <Link href="/privacy-policy" className={linkClassName}>
                 privacy policy
               </Link>

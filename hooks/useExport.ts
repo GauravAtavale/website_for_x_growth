@@ -5,6 +5,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import { toast } from 'sonner';
+import { shareImageToX } from '@/lib/share/share-to-x';
 import { getAspectRatioPreset } from '@/lib/aspect-ratio-utils';
 import { exportElement, type ExportOptions } from '@/lib/export/export-service';
 import { saveExportPreferences, getExportPreferences, saveExportedImage } from '@/lib/export-storage';
@@ -274,78 +275,84 @@ export function useExport(selectedAspectRatio: string) {
     }
   }, [selectedAspectRatio, settings, backgroundConfig, backgroundBorderRadius, backgroundBlur, backgroundNoise, backgroundOpacity, textOverlays, imageOverlays, perspective3D, screenshot.src, screenshot.radius]);
 
+  /** Renders the current canvas to a PNG blob (used by Copy and Share to X). */
+  const renderPng = useCallback(async (onProgress?: (percent: number) => void): Promise<Blob> => {
+    const canvasContainer = getCanvasContainer();
+    const preset = getAspectRatioPreset(selectedAspectRatio);
+    if (!preset) {
+      throw new Error('Invalid aspect ratio selected');
+    }
+
+    const exportOptions: ExportOptions = {
+      format: 'png',
+      qualityPreset: 'medium',
+      scale: 2,
+      exportWidth: preset.width,
+      exportHeight: preset.height,
+      skipSharp: true, // Clipboard doesn't need Sharp compression — speed matters more
+    };
+
+    // exportElement reports progress 0-95 via callback
+    const result = await exportElement(
+      'image-render-card',
+      exportOptions,
+      canvasContainer,
+      backgroundConfig,
+      backgroundBorderRadius,
+      textOverlays,
+      imageOverlays,
+      perspective3D,
+      screenshot.src || undefined,
+      screenshot.radius,
+      backgroundBlur,
+      backgroundNoise,
+      backgroundOpacity,
+      (percent) => onProgress?.(percent)
+    );
+
+    if (!result.blob || result.blob.size === 0) {
+      throw new Error('Invalid image data generated');
+    }
+
+    // Prepare clipboard blob — clipboard requires PNG
+    onProgress?.(96);
+    const blob = result.blob.type === 'image/png'
+      ? result.blob
+      : await new Promise<Blob>((resolve, reject) => {
+        const url = URL.createObjectURL(result.blob);
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          URL.revokeObjectURL(url);
+          if (!ctx) {
+            reject(new Error('Failed to get canvas context'));
+            return;
+          }
+          ctx.drawImage(img, 0, 0);
+          canvas.toBlob((b) => {
+            if (b) {
+              resolve(b);
+            } else {
+              reject(new Error('Failed to create blob'));
+            }
+          }, 'image/png');
+        };
+        img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Failed to load image')); };
+        img.src = url;
+      });
+    return blob;
+  }, [selectedAspectRatio, backgroundConfig, backgroundBorderRadius, backgroundBlur, backgroundNoise, backgroundOpacity, textOverlays, imageOverlays, perspective3D, screenshot.src, screenshot.radius]);
+
   const copyImage = useCallback(async (): Promise<void> => {
     const anim = copyAnimator.current;
     setIsCopying(true);
     anim.snap(0);
 
     try {
-      const canvasContainer = getCanvasContainer();
-      const preset = getAspectRatioPreset(selectedAspectRatio);
-      if (!preset) {
-        throw new Error('Invalid aspect ratio selected');
-      }
-
-      const exportOptions: ExportOptions = {
-        format: 'png',
-        qualityPreset: 'medium',
-        scale: 2,
-        exportWidth: preset.width,
-        exportHeight: preset.height,
-        skipSharp: true, // Clipboard doesn't need Sharp compression — speed matters more
-      };
-
-      // exportElement reports progress 0-95 via callback
-      const result = await exportElement(
-        'image-render-card',
-        exportOptions,
-        canvasContainer,
-        backgroundConfig,
-        backgroundBorderRadius,
-        textOverlays,
-        imageOverlays,
-        perspective3D,
-        screenshot.src || undefined,
-        screenshot.radius,
-        backgroundBlur,
-        backgroundNoise,
-        backgroundOpacity,
-        (percent) => anim.set(percent)
-      );
-
-      if (!result.blob || result.blob.size === 0) {
-        throw new Error('Invalid image data generated');
-      }
-
-      // Prepare clipboard blob — clipboard requires PNG
-      anim.set(96);
-      const blob = result.blob.type === 'image/png'
-        ? result.blob
-        : await new Promise<Blob>((resolve, reject) => {
-          const url = URL.createObjectURL(result.blob);
-          const img = new Image();
-          img.onload = () => {
-            const canvas = document.createElement('canvas');
-            canvas.width = img.width;
-            canvas.height = img.height;
-            const ctx = canvas.getContext('2d');
-            URL.revokeObjectURL(url);
-            if (!ctx) {
-              reject(new Error('Failed to get canvas context'));
-              return;
-            }
-            ctx.drawImage(img, 0, 0);
-            canvas.toBlob((b) => {
-              if (b) {
-                resolve(b);
-              } else {
-                reject(new Error('Failed to create blob'));
-              }
-            }, 'image/png');
-          };
-          img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Failed to load image')); };
-          img.src = url;
-        });
+      const blob = await renderPng((percent) => anim.set(percent));
 
       // Stage 4: Write to clipboard (85 → 100%)
       anim.set(92);
@@ -392,7 +399,22 @@ export function useExport(selectedAspectRatio: string) {
     } finally {
       setIsCopying(false);
     }
-  }, [selectedAspectRatio, backgroundConfig, backgroundBorderRadius, backgroundBlur, backgroundNoise, backgroundOpacity, textOverlays, imageOverlays, perspective3D, screenshot.src, screenshot.radius]);
+  }, [renderPng]);
+
+  /** Shares the current canvas to X (share sheet on phones, copy + compose on desktop). */
+  const shareToX = useCallback(async (): Promise<void> => {
+    setIsCopying(true);
+    try {
+      await shareImageToX(renderPng(), { filename: "growth-studio.png" });
+    } catch (error) {
+      console.error('Share to X failed:', error);
+      toast.error('Share failed', {
+        description: error instanceof Error ? error.message : 'Please try again.',
+      });
+    } finally {
+      setIsCopying(false);
+    }
+  }, [renderPng]);
 
   return {
     settings,
@@ -405,5 +427,6 @@ export function useExport(selectedAspectRatio: string) {
     updateScale,
     exportImage,
     copyImage,
+    shareToX,
   };
 }

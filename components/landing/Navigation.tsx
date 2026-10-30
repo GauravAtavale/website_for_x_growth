@@ -69,6 +69,12 @@ const resourceGroups = [
         icon: QrCodeIcon,
       },
       {
+        label: "X Banner Maker",
+        description: "A 1500×500 header for your X profile",
+        href: "/x-banner-maker",
+        icon: NewTwitterIcon,
+      },
+      {
         label: "Remove Background",
         description: "Cut the subject out of any image",
         href: "/remove-background",

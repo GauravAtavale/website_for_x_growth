@@ -44,6 +44,7 @@ import {
   type RasterFormat,
   type RenderedQr,
 } from "@/lib/qr/render";
+import { ShareToXButton } from "@/components/share/ShareToXButton";
 import { CARD_CLASS, INTER } from "./ui";
 
 const TYPE_ICONS: Record<QrContentType, React.ComponentType<{ size?: number; className?: string }>> = {
@@ -458,6 +459,15 @@ export function QrWorkspace() {
           <Copy01Icon size={16} aria-hidden="true" />
           Copy image
         </button>
+        <ShareToXButton
+          disabled={!ready || busy !== null}
+          filename={`${fileBase}.png`}
+          text="Made this QR code with Growth Studio"
+          getImage={() => {
+            if (!rendered) return Promise.reject(new Error("Nothing to share yet"));
+            return rasterize(rendered, Math.min(size, 2048), "png");
+          }}
+        />
         <p className="text-center text-xs leading-relaxed text-muted-foreground">
           Static code: it never expires and works without this site. Test it with your phone camera before printing.
         </p>

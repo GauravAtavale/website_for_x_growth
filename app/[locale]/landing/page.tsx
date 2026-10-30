@@ -51,19 +51,6 @@ const howItWorks = [
   },
 ];
 
-// Video testimonials
-const videoTestimonials = [
-  {
-    videoId: "NAS4BEP2KtA",
-    startTime: 3562,
-    endTime: 3768,
-  },
-  {
-    videoId: "29S4pv64Tbg",
-    startTime: 222,
-  },
-];
-
 export default function LandingPageRoute() {
   return (
     <LandingPage
@@ -73,8 +60,6 @@ export default function LandingPageRoute() {
       ctaLabel="Get Started"
       ctaHref="/"
       howItWorks={howItWorks}
-      videoTestimonials={videoTestimonials}
-      videoTestimonialsTitle="Creators Love Growth Studio"
       brandName="Growth Studio"
     />
   );

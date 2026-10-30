@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { reportClientError } from "@/lib/errors/report";
 import Link from "next/link";
 
 const INTER =
@@ -21,6 +22,7 @@ export default function Error({
 }) {
   useEffect(() => {
     console.error(error);
+    reportClientError(error, "react-boundary", error.digest);
   }, [error]);
 
   return (

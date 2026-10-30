@@ -3,6 +3,9 @@
   // Worker name — this becomes <name>.<your-subdomain>.workers.dev
   "name": "growth-studio",
   "keep_vars": true,
+  // Explicit so deploys don't warn: serve on *.workers.dev and keep preview URLs.
+  "workers_dev": true,
+  "preview_urls": true,
   // custom-worker.ts wraps the generated .open-next/worker.js (adds the /hf/ model proxy)
   "main": "custom-worker.ts",
   "compatibility_date": "2026-10-01",
@@ -19,6 +22,9 @@
     }
   ],
   "observability": {
-    "enabled": true
+    "enabled": true,
+    // Issues: groups crashes, 5xx responses and console.error() logs (incl.
+    // browser errors sent to /api/client-error) so you can get alerts.
+    "issues": { "enabled": true }
   }
 }

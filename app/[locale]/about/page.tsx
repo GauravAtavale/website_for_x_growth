@@ -2,16 +2,13 @@ import { Metadata } from "next";
 import Link from "next/link";
 import { Navigation } from "@/components/landing/Navigation";
 import { Footer } from "@/components/landing/Footer";
-import { CHANGELOG, LATEST_VERSION } from "@/lib/seo/changelog";
-import { CLAIMS_CHECKED_LABEL, comparisons } from "@/lib/seo/comparisons";
-import { GUIDES_UPDATED_LABEL, HOW_TO_UPDATED, formatGuideDate, guides } from "@/lib/seo/guides";
 import { PRODUCT_FACTS, atLeast } from "@/lib/seo/product-facts";
 import { TOOLS } from "@/lib/seo/tools";
 
 export const metadata: Metadata = {
-  title: { absolute: "About Growth Studio: Free Open-Source Screenshot Editor" },
+  title: { absolute: "About Growth Studio: Free Tools for Growing on X" },
   description:
-    "About Growth Studio, the free, open-source browser tool that transforms plain screenshots into professional graphics.",
+    "About Growth Studio and its maker, Gaurav Atavale: free, browser-based tools for screenshots, X banners, QR codes, and social graphics.",
   alternates: {
     canonical: "/about",
   },
@@ -57,9 +54,18 @@ const offerings = [
     description:
       "An AI model that runs on your device and returns a full-resolution transparent PNG.",
   },
+  {
+    title: "X Banner Maker and QR Codes",
+    description:
+      "A 1500×500 header for your X profile, plus styled QR codes for links, Wi-Fi, contacts, and payments.",
+  },
+  {
+    title: "Share to X",
+    description:
+      "Send what you make straight to a new post on X, from your phone or your desktop.",
+  },
 ];
 
-const latestRelease = CHANGELOG[0];
 
 export default function AboutPage() {
   return (
@@ -77,10 +83,10 @@ export default function AboutPage() {
         <div className="space-y-8">
           <section>
             <p className="text-lg leading-relaxed text-muted-foreground">
-              Growth Studio is a free, open-source screenshot editor built
-              for developers, designers, and marketers who want their images to
-              look professional, without paying for expensive tools or signing
-              up for yet another account.
+              Growth Studio is a free, open-source studio for the images that
+              help you grow on X: polished screenshots, code and post images,
+              profile banners, QR codes, and quick image fixes. Everything runs
+              in your browser, with no account, no watermark, and no uploads.
             </p>
           </section>
 
@@ -89,15 +95,15 @@ export default function AboutPage() {
               className="mb-3 text-xl font-semibold tracking-[-0.02em] text-foreground"
               style={{ fontFamily: INTER }}
             >
-              Why We Built This
+              Why I Built This
             </h2>
             <p className="leading-relaxed text-muted-foreground">
-              Every time you share a screenshot on social media, in
-              documentation, or on a landing page, presentation matters. But
-              existing tools either cost too much, require signups, add
-              watermarks, or upload your images to their servers. We wanted
-              something better: a tool that runs entirely in your browser,
-              respects your privacy, and is completely free to use.
+              Posting on X, writing docs, or launching a project, presentation
+              matters, but most tools charge, ask you to sign up, add
+              watermarks, or upload your images to their servers. I wanted one
+              place that does the job well, respects your privacy, and stays
+              free. It reflects something I believe: knowledge and good tools
+              should be shared and accessible.
             </p>
           </section>
 
@@ -106,7 +112,7 @@ export default function AboutPage() {
               className="mb-3 text-xl font-semibold tracking-[-0.02em] text-foreground"
               style={{ fontFamily: INTER }}
             >
-              What We Offer
+              What You Can Make
             </h2>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {offerings.map((item) => (
@@ -127,60 +133,21 @@ export default function AboutPage() {
               className="mb-3 text-xl font-semibold tracking-[-0.02em] text-foreground"
               style={{ fontFamily: INTER }}
             >
-              How We Write Guides and Comparisons
-            </h2>
-            <p className="mb-3 leading-relaxed text-muted-foreground">
-              The site publishes {guides.length} guides and {comparisons.length}{" "}
-              head-to-head comparisons. They follow a few rules:
-            </p>
-            <ul className="list-inside list-disc space-y-2 text-muted-foreground">
-              <li>
-                Every how-to guide is written by doing the task in the current
-                editor, step by step. They were last checked on{" "}
-                {formatGuideDate(HOW_TO_UPDATED)}.
-              </li>
-              <li>
-                Claims about other tools (prices, watermarks, export formats,
-                account requirements) come from each vendor&apos;s own website.
-                Roundups were last checked on {GUIDES_UPDATED_LABEL} and
-                comparisons on {CLAIMS_CHECKED_LABEL}.
-              </li>
-              <li>
-                When another tool is the better choice for a job, we say so,
-                and we list Growth Studio&apos;s own limitations next to its
-                strengths.
-              </li>
-              <li>
-                No one pays to be included or ranked, and there are no affiliate
-                links.
-              </li>
-            </ul>
-            <p className="mt-3 leading-relaxed text-muted-foreground">
-              Spot something out of date or wrong? Tell us on the{" "}
-              <Link href="/contact" className={linkClassName}>
-                contact page
-              </Link>{" "}
-              and we will correct it.
-            </p>
-          </section>
-
-          <section>
-            <h2
-              className="mb-3 text-xl font-semibold tracking-[-0.02em] text-foreground"
-              style={{ fontFamily: INTER }}
-            >
-              How We Keep It Current
+              Free, With No Ads
             </h2>
             <p className="leading-relaxed text-muted-foreground">
-              Growth Studio ships regularly, and every release is written up
+              There is no paid plan, no watermark, no account, and no
+              advertising. Visits are counted with cookie-free analytics, and
+              the{" "}
+              <Link href="/privacy-policy" className={linkClassName}>
+                privacy policy
+              </Link>{" "}
+              lists exactly what leaves your device. New features are written up
               in the{" "}
               <Link href="/changelog" className={linkClassName}>
                 changelog
               </Link>
-              . The latest release is version {LATEST_VERSION}, &quot;
-              {latestRelease.title}&quot;, from {latestRelease.date}. Guides and
-              comparisons show the date they were last checked, and pages are
-              updated when the editor or a compared tool changes.
+              .
             </p>
           </section>
 
@@ -189,60 +156,36 @@ export default function AboutPage() {
               className="mb-3 text-xl font-semibold tracking-[-0.02em] text-foreground"
               style={{ fontFamily: INTER }}
             >
-              How the Site Is Funded
+              About the Maker
             </h2>
-            <p className="leading-relaxed text-muted-foreground">
-              There is no paid plan, no watermark, and no account. The site is
-              supported by ads from Google AdSense shown on content pages. Ads
-              never affect what we recommend in guides or comparisons. The{" "}
-              <Link href="/privacy-policy" className={linkClassName}>
-                privacy policy
-              </Link>{" "}
-              explains how ads use cookies and how to opt out of personalized
-              ads.
-            </p>
-          </section>
-
-          <section>
-            <h2
-              className="mb-3 text-xl font-semibold tracking-[-0.02em] text-foreground"
-              style={{ fontFamily: INTER }}
-            >
-              Open Source
-            </h2>
-            <p className="leading-relaxed text-muted-foreground">
-              Growth Studio is fully open source. You can view, contribute
-              to, or fork the project on{" "}
+            <p className="mb-3 leading-relaxed text-muted-foreground">
+              I&apos;m{" "}
               <Link
-                href="https://github.com/GauravAtavale"
-                target="_blank"
-                rel="noopener noreferrer"
-                className={linkClassName}
-              >
-                GitHub
-              </Link>
-              . We believe the best tools are built in the open.
-            </p>
-          </section>
-
-          <section>
-            <h2
-              className="mb-3 text-xl font-semibold tracking-[-0.02em] text-foreground"
-              style={{ fontFamily: INTER }}
-            >
-              Built By
-            </h2>
-            <p className="leading-relaxed text-muted-foreground">
-              Created and maintained by{" "}
-              <Link
-                href="https://x.com/GauravAtavale"
+                href="https://gauravatavale.github.io/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className={linkClassName}
               >
                 Gaurav Atavale
               </Link>
-              . You can reach Gaurav on{" "}
+              , an AI Research Scientist at American Express AI Labs. I build
+              and study systems that reason, plan, and learn from feedback, and
+              I learn best by building them from the ground up. My interests are
+              generative AI and large language models, RL fine-tuning (PPO, DPO,
+              GRPO), and agentic systems that plan and act.
+            </p>
+            <p className="leading-relaxed text-muted-foreground">
+              I write about GenAI, RL, and the research I&apos;m exploring on{" "}
+              <Link
+                href="https://gauravatavale.github.io/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className={linkClassName}
+              >
+                my blog
+              </Link>
+              , and I&apos;m always happy to connect with fellow technologists
+              and AI enthusiasts on{" "}
               <Link
                 href="https://x.com/GauravAtavale"
                 target="_blank"
@@ -250,8 +193,17 @@ export default function AboutPage() {
                 className={linkClassName}
               >
                 X
-              </Link>{" "}
-              or{" "}
+              </Link>
+              ,{" "}
+              <Link
+                href="https://linkedin.com/in/gauravatavale"
+                target="_blank"
+                rel="noopener noreferrer"
+                className={linkClassName}
+              >
+                LinkedIn
+              </Link>
+              , or{" "}
               <Link
                 href="https://github.com/GauravAtavale"
                 target="_blank"
@@ -260,8 +212,8 @@ export default function AboutPage() {
               >
                 GitHub
               </Link>
-              . If you find Growth Studio useful, consider sharing it with
-              others.
+              . If Growth Studio is useful to you, sharing it is the best way to
+              help.
             </p>
           </section>
         </div>

@@ -42,6 +42,7 @@ const ACTION_LABEL: Record<ToolEngine, string> = {
   crop: "Crop",
   rotate: "Apply",
   qr: "Generate",
+  "x-banner": "Create",
 };
 
 const PANELS: Record<BatchToolEngine, React.ComponentType<PanelProps>> = {

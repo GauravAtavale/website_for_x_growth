@@ -61,11 +61,24 @@ All are environment variables; leave unset to disable.
 
 `NEXT_PUBLIC_*` values are baked in at build time, so set them as build variables.
 
+## Error alerts
+
+The Worker has Cloudflare **Issues** turned on (`observability.issues` in `wrangler.jsonc`). It groups
+server errors and crashes, and browser errors are reported to it through `/api/client-error`. To get
+notified: **Workers & Pages → growth-studio → Issues → Automations → Add automation**, choose a trigger
+(e.g. occurrence threshold = 1) and a destination (webhook, chat, or incident tool). For failed builds, see
+Cloudflare's Workers Builds event subscriptions.
+
 ## Notes on running on Cloudflare
 
 - Image export uses the browser's encoder (the server-side `sharp` step can't run on Workers).
 - "Capture a website" screenshots aren't cached; each capture goes straight to the screenshot service.
 - Analytics and ads are off unless you set your own IDs above.
+- `custom-worker.ts` is the Worker entry point: it serves the background-remover model from `/hf/…` (Hugging
+  Face sends no CORS headers for this site) and hands everything else to Next.js.
+- `public/_headers` adds the cross-origin header the tool workers need to static files.
+- Next.js prints a "middleware is deprecated, use proxy" notice during builds. It's intentional: the Cloudflare
+  adapter's support for `proxy.ts` is still experimental, so `middleware.ts` is kept until that's stable.
 
 ## License
 

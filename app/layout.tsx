@@ -39,6 +39,7 @@ import { AdFreeRouteLinks } from "@/components/AdFreeRouteLinks";
 import { getRootJsonLd } from "@/lib/seo/json-ld";
 import { ADSENSE_CLIENT } from "@/components/AdSenseScript";
 import { CF_BEACON_TOKEN } from "@/lib/site-stats";
+import { ErrorReporter } from "@/components/ErrorReporter";
 
 // Your own Google Analytics 4 measurement ID (G-...). Leave unset to disable.
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID || "";
@@ -482,6 +483,7 @@ gtag('config', '${GA_ID}');`}
             </Script>
           </>
         ) : null}
+        <ErrorReporter />
         <QueryProvider>
           <GlobalDropZone>
             <PathTracker />

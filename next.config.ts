@@ -165,6 +165,14 @@ const nextConfig: NextConfig = {
 
   // REQUIRED for react-konva
   webpack: (config, { isServer }) => {
+    // transformers.js (background remover) reads import.meta in a way webpack
+    // flags; it works at runtime, so silence that one known warning.
+    config.ignoreWarnings = [
+      ...(config.ignoreWarnings ?? []),
+      { module: /@huggingface[\\/]transformers/, message: /import\.meta/ },
+      // Webpack note about chunk hashing only; it has no effect on the site.
+      { message: /Circular dependency between chunks with runtime/ },
+    ];
     config.externals = [...(config.externals || []), { canvas: "canvas" }];
     if (!isServer) {
       // transformers.js (background remover) references Node-only backends

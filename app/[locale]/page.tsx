@@ -7,6 +7,7 @@ import {
   Image02Icon,
   RotateClockwiseIcon,
   LaptopPhoneSyncIcon,
+  NewTwitterIcon,
 } from "hugeicons-react";
 import { Navigation } from "@/components/landing/Navigation";
 import { Footer } from "@/components/landing/Footer";
@@ -284,17 +285,19 @@ function StorePreview(): React.JSX.Element {
 }
 
 /** Rendered once at build time; the same renderer powers the QR tool itself. */
-const QR_PREVIEW_SVG = renderQrSvg("https://x.com/GauravAtavale", {
-  ...DEFAULT_STYLE,
-  dotStyle: "rounded",
-  eyeFrame: "rounded",
-  eyeBall: "circle",
-  fg: "#1e1b4b",
-  fg2: "#7c3aed",
-  margin: 2,
-  frame: "label",
-  frameColor: "#1e1b4b",
-}).svg;
+const QR_PREVIEW_SVG = renderQrSvg(
+  "https://x.com/GauravAtavale",
+  Object.assign({}, DEFAULT_STYLE, {
+    dotStyle: "rounded",
+    eyeFrame: "rounded",
+    eyeBall: "circle",
+    fg: "#1e1b4b",
+    fg2: "#7c3aed",
+    margin: 2,
+    frame: "label",
+    frameColor: "#1e1b4b",
+  }),
+).svg;
 
 function QrPreview(): React.JSX.Element {
   return (
@@ -375,6 +378,7 @@ const QUICK_TOOLS = [
   { href: "/crop-image", label: "Crop", icon: CropIcon },
   { href: "/rotate-image", label: "Rotate", icon: RotateClockwiseIcon },
   { href: "/mockup-generator", label: "Mockup generator", icon: LaptopPhoneSyncIcon },
+  { href: "/x-banner-maker", label: "X banner", icon: NewTwitterIcon },
 ];
 
 const IMAGE_HANDLING = [

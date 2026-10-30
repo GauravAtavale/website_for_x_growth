@@ -18,6 +18,10 @@ const QrWorkspace = dynamic(() =>
   import("./QrWorkspace").then((mod) => mod.QrWorkspace),
 );
 
+const XBannerWorkspace = dynamic(() =>
+  import("./XBannerWorkspace").then((mod) => mod.XBannerWorkspace),
+);
+
 interface ToolPageProps {
   tool: ToolDefinition;
 }
@@ -41,6 +45,8 @@ export function ToolPage({ tool }: ToolPageProps) {
         <div className="mt-10 sm:mt-12">
           {tool.engine === "qr" ? (
             <QrWorkspace />
+          ) : tool.engine === "x-banner" ? (
+            <XBannerWorkspace />
           ) : tool.engine === "crop" ? (
             <CropWorkspace tool={tool} />
           ) : (

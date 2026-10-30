@@ -12,7 +12,7 @@
 
 import type { RasterFormat } from "@/lib/image-tools/types";
 
-export type ToolEngine = "compress" | "convert" | "resize" | "crop" | "rotate" | "qr";
+export type ToolEngine = "compress" | "convert" | "resize" | "crop" | "rotate" | "qr" | "x-banner";
 
 export interface ToolFaq {
   question: string;
@@ -384,6 +384,55 @@ export const TOOLS: ToolDefinition[] = [
     related: ["/crop-image", "/resize-image", "/convert-image"],
     primary: true,
   },  {
+    slug: "/x-banner-maker",
+    engine: "x-banner",
+    name: "X Banner Maker",
+    h1: "X Banner Maker",
+    title: "X Banner Maker: Free 1500×500 Header",
+    description:
+      "Design a Twitter/X header at the exact 1500×500 size. Gradients, photos, and fonts, with a profile-photo safe zone. Free, no signup, no watermark.",
+    keywords: [
+      "x banner maker",
+      "twitter banner maker",
+      "x header maker",
+      "twitter header 1500x500",
+      "x profile banner",
+      "free twitter banner",
+      "twitter cover photo maker",
+    ],
+    intro:
+      "Make a header for your X profile in a minute. Pick a gradient, colour, or photo, write a headline and tagline, and download a 1500×500 image that isn't hidden behind your profile photo.",
+    features: [
+      "Exact 1500×500 export, the size X recommends",
+      "Profile-photo and crop guides so nothing important is covered",
+      "Gradients, solid colours, or your own photo with adjustable darkening",
+      "Six fonts, three alignments, and automatic text contrast",
+      "Download PNG or JPG, or share straight to X",
+      "Runs in your browser; your photo is never uploaded",
+    ],
+    faqs: [
+      {
+        question: "What size should an X (Twitter) banner be?",
+        answer:
+          "X recommends 1500×500 pixels, a 3:1 ratio, as a JPG or PNG under 5 MB. This tool always exports at exactly that size.",
+      },
+      {
+        question: "Why is part of my banner hidden?",
+        answer:
+          "Your profile photo overlaps the bottom-left of the header, and some screens crop a strip from the top and bottom. Turn on the guides to see those areas, and keep text out of them. Left-aligned text automatically starts to the right of the photo.",
+      },
+      {
+        question: "How do I set it as my header?",
+        answer:
+          "Download the image, open your profile on X, choose Edit profile, click the camera icon on the header, and upload it. You can reposition it before saving.",
+      },
+      PRIVACY_FAQ,
+      FREE_FAQ,
+    ],
+    related: ["/qr-code-generator", "/crop-image", "/resize-image"],
+    primary: true,
+  },
+  {
     slug: "/qr-code-generator",
     engine: "qr",
     name: "QR Code Generator",

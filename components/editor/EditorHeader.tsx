@@ -144,6 +144,7 @@ export function EditorHeader() {
 
   const {
     copyImage,
+    shareToX,
     isExporting,
     isCopying,
     progress,
@@ -396,6 +397,22 @@ export function EditorHeader() {
               <span className="hidden xl:inline">Copy</span>
             </Button>
 
+            <Button
+              onClick={() => void shareToX()}
+              disabled={!hasContent || isExporting || isCopying}
+              variant="ghost"
+              size="sm"
+              aria-label="Share to X"
+              title="Share to X"
+              className={cn(
+                "hidden lg:inline-flex h-8 gap-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-transparent dark:hover:bg-transparent text-xs leading-none shrink-0",
+                isMobile ? "px-1.5" : "px-2.5"
+              )}
+            >
+              <NewTwitterIcon size={14} />
+              <span className="hidden xl:inline">Share</span>
+            </Button>
+
             <ResponsivePopover
               open={exportOpen}
               onOpenChange={setExportOpen}
@@ -476,6 +493,11 @@ export function EditorHeader() {
                     {isMobile && (
                       <Button onClick={() => { setExportOpen(false); void copyImage(); }} variant="outline" className="h-12 w-full rounded-lg" disabled={isCopying}>
                         <Copy01Icon size={16} />Copy image
+                      </Button>
+                    )}
+                    {isMobile && (
+                      <Button onClick={() => { setExportOpen(false); void shareToX(); }} variant="outline" className="h-12 w-full rounded-lg" disabled={isCopying}>
+                        <NewTwitterIcon size={16} />Share to X
                       </Button>
                     )}
                     {isMobile && hasImage && showVideoExport && (
