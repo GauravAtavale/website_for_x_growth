@@ -1,0 +1,8 @@
+# Cloudflare serves these files directly, skipping the headers in next.config.ts.
+# Pages that run multi-threaded tools (background remover, video export) are
+# cross-origin isolated, and browsers only let them start a worker whose script
+# carries a compatible Cross-Origin-Embedder-Policy.
+/_next/static/*
+  Cross-Origin-Embedder-Policy: credentialless
+/ffmpeg/*
+  Cross-Origin-Embedder-Policy: credentialless
