@@ -6,7 +6,7 @@
  * this device (the worker cannot reach localStorage).
  */
 
-import { MODEL_BASE_URL, MODEL_REVISION, MODEL_WEIGHTS } from "./mask";
+import { MODEL_REVISION, MODEL_WEIGHTS, modelBaseUrl } from "./mask";
 import {
   BackgroundRemovalError,
   type Backend,
@@ -75,7 +75,7 @@ class BackgroundRemovalClient {
     try {
       if (typeof caches === "undefined") return false;
       const cache = await caches.open("transformers-cache");
-      return Boolean(await cache.match(`${MODEL_BASE_URL}/${MODEL_WEIGHTS[backend].path}`));
+      return Boolean(await cache.match(`${modelBaseUrl(location.origin)}/${MODEL_WEIGHTS[backend].path}`));
     } catch {
       return false;
     }

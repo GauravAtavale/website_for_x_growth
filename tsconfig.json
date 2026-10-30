@@ -43,6 +43,7 @@
     "node_modules",
     "tests",
     "scripts",
-    ".open-next"
+    ".open-next",
+    "custom-worker.ts"
   ]
 }

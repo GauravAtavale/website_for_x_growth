@@ -9,6 +9,7 @@
 import type { PreTrainedModel, Processor, RawImage, Tensor } from "@huggingface/transformers";
 import {
   MODEL_ID,
+  MODEL_PROXY_PATH,
   MODEL_REVISION,
   MODEL_WEIGHTS,
   assessMask,
@@ -73,6 +74,8 @@ function loadLibrary(): Promise<Transformers> {
   library ??= import("@huggingface/transformers").then((module) => {
     module.env.allowLocalModels = false;
     module.env.allowRemoteModels = true;
+    // Download from this site's same-origin proxy instead of huggingface.co (CORS).
+    module.env.remoteHost = `${self.location.origin}${MODEL_PROXY_PATH}`;
     return module;
   });
   return library;

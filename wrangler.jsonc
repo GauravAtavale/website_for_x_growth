@@ -3,7 +3,8 @@
   // Worker name — this becomes <name>.<your-subdomain>.workers.dev
   "name": "growth-studio",
   "keep_vars": true,
-  "main": ".open-next/worker.js",
+  // custom-worker.ts wraps the generated .open-next/worker.js (adds the /hf/ model proxy)
+  "main": "custom-worker.ts",
   "compatibility_date": "2026-10-01",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "assets": {

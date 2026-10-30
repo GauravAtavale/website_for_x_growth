@@ -13,7 +13,16 @@
  */
 export const MODEL_ID = "studioludens/birefnet-lite-512";
 export const MODEL_REVISION = "4a3c40c36c94093cc1e724d9ea428b8fa4b57dc7";
-export const MODEL_BASE_URL = `https://huggingface.co/${MODEL_ID}/resolve/${MODEL_REVISION}`;
+/**
+ * Models are fetched through this site's own /hf/ proxy (see custom-worker.ts)
+ * instead of straight from Hugging Face, which doesn't send CORS headers here.
+ */
+export const MODEL_PROXY_PATH = "/hf/";
+
+/** Base URL transformers.js downloads (and caches) the pinned model files under. */
+export function modelBaseUrl(origin: string): string {
+  return `${origin}${MODEL_PROXY_PATH}${MODEL_ID}/resolve/${MODEL_REVISION}`;
+}
 
 /** WebGPU runs the half-precision weights; WASM needs full precision. */
 export const MODEL_WEIGHTS = {
