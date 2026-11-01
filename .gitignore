@@ -44,5 +44,6 @@ yarn-error.log*
 
 public/backgrounds
 .venv
+.env
 /scripts/*
 !/scripts/indexnow.ts

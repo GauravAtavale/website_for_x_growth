@@ -28,8 +28,8 @@ export function getDb(): D1Database | null {
 }
 
 /**
- * Same tables as migrations/0001_leaderboard.sql, created on first use so a
- * fresh local database works without running the migration by hand.
+ * Same tables as migrations/0001 and 0002, created on first use so a fresh
+ * local database works without running the migrations by hand.
  */
 const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS accounts (
@@ -39,6 +39,9 @@ const SCHEMA = [
      handle TEXT NOT NULL COLLATE NOCASE, day TEXT NOT NULL, followers INTEGER NOT NULL,
      checked_at TEXT NOT NULL, PRIMARY KEY (handle, day))`,
   `CREATE INDEX IF NOT EXISTS snapshots_day ON snapshots (day)`,
+  `CREATE TABLE IF NOT EXISTS signup_profiles (
+     handle TEXT PRIMARY KEY COLLATE NOCASE, status TEXT NOT NULL, name TEXT, avatar_url TEXT,
+     followers INTEGER, checked_at TEXT NOT NULL)`,
 ];
 let schemaReady: Promise<void> | null = null;
 function ensureSchema(db: D1Database): Promise<void> {
@@ -67,6 +70,96 @@ export async function joinAccount(
   // Return the stored spelling ("gauravatavale" -> "GauravAtavale").
   const row = await db.prepare(`SELECT handle FROM accounts WHERE handle = ?`).bind(handle).first<{ handle: string }>();
   return { handle: row?.handle ?? handle, status: "already_joined" };
+}
+
+/* ------------------------------------------------------------------ */
+/* Sign-up scraper                                                      */
+/* ------------------------------------------------------------------ */
+
+/** The secret the scraper must send, from LEADERBOARD_SCRAPER_KEY. */
+export function getScraperKey(): string | null {
+  try {
+    const env = getCloudflareContext().env as unknown as { LEADERBOARD_SCRAPER_KEY?: string };
+    return env.LEADERBOARD_SCRAPER_KEY || process.env.LEADERBOARD_SCRAPER_KEY || null;
+  } catch {
+    return process.env.LEADERBOARD_SCRAPER_KEY || null;
+  }
+}
+
+/** Today's date in New York, YYYY-MM-DD. Snapshots are keyed by this. */
+export function nyDay(at = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(at);
+}
+
+/** Active accounts the sign-up scraper hasn't looked at yet, oldest first. */
+export async function listNewSignups(db: D1Database, limit = 200) {
+  await ensureSchema(db);
+  const rows = await db
+    .prepare(
+      `SELECT a.handle, a.joined_at FROM accounts a
+       LEFT JOIN signup_profiles p ON p.handle = a.handle
+       WHERE p.handle IS NULL AND a.status = 'active'
+       ORDER BY a.joined_at LIMIT ?`,
+    )
+    .bind(limit)
+    .all<{ handle: string; joined_at: string }>();
+  return rows.results.map((r) => ({ handle: r.handle, joinedAt: r.joined_at }));
+}
+
+export interface SignupProfile {
+  handle: string;
+  status: "ok" | "not_found" | "suspended";
+  /** The handle as X spells it (x.com redirects to the canonical case). */
+  canonicalHandle?: string | null;
+  name?: string | null;
+  avatarUrl?: string | null;
+  followers?: number | null;
+}
+
+/**
+ * Saves what the scraper found:
+ *   ok        -> name + photo on the account, the sign-up record, and a first daily snapshot
+ *   not_found / suspended -> account marked so it leaves the board and isn't re-checked
+ */
+export async function saveSignupProfiles(db: D1Database, profiles: SignupProfile[]) {
+  await ensureSchema(db);
+  const now = new Date();
+  const checkedAt = now.toISOString();
+  const day = nyDay(now);
+  const statements: D1PreparedStatement[] = [];
+
+  for (const p of profiles) {
+    if (p.status === "ok") {
+      const handle = p.canonicalHandle || p.handle;
+      statements.push(
+        // handle is COLLATE NOCASE, so this also fixes "gauravatavale" -> "GauravAtavale"
+        db.prepare(`UPDATE accounts SET handle = ?, name = ?, avatar_url = ? WHERE handle = ?`)
+          .bind(handle, p.name ?? null, p.avatarUrl ?? null, p.handle),
+        db.prepare(
+          `INSERT INTO signup_profiles (handle, status, name, avatar_url, followers, checked_at)
+           VALUES (?, 'ok', ?, ?, ?, ?)
+           ON CONFLICT(handle) DO UPDATE SET status = excluded.status, name = excluded.name,
+             avatar_url = excluded.avatar_url, followers = excluded.followers, checked_at = excluded.checked_at`,
+        ).bind(handle, p.name ?? null, p.avatarUrl ?? null, p.followers!, checkedAt),
+        // First point on the follower history. The daily scraper owns later days
+        // and may overwrite this one; a sign-up never overwrites a daily reading.
+        db.prepare(
+          `INSERT INTO snapshots (handle, day, followers, checked_at) VALUES (?, ?, ?, ?)
+           ON CONFLICT(handle, day) DO NOTHING`,
+        ).bind(handle, day, p.followers!, checkedAt),
+      );
+    } else {
+      statements.push(
+        db.prepare(`UPDATE accounts SET status = ? WHERE handle = ?`).bind(p.status, p.handle),
+        db.prepare(
+          `INSERT INTO signup_profiles (handle, status, checked_at) VALUES (?, ?, ?)
+           ON CONFLICT(handle) DO UPDATE SET status = excluded.status, checked_at = excluded.checked_at`,
+        ).bind(p.handle, p.status, checkedAt),
+      );
+    }
+  }
+  if (statements.length) await db.batch(statements);
+  return { saved: profiles.length, day };
 }
 
 /* ------------------------------------------------------------------ */
@@ -165,7 +258,12 @@ export async function buildLeaderboard(db: D1Database, period: LeaderboardPeriod
     const series = byHandle.get(account.handle.toLowerCase()) ?? [];
     const now_ = latestDay ? gainAsOf(series, period, latestDay) : null;
     if (!now_) {
-      pending.push({ handle: account.handle, joinedAt: account.joined_at });
+      pending.push({
+        handle: account.handle,
+        name: account.name,
+        avatarUrl: account.avatar_url,
+        joinedAt: account.joined_at,
+      });
       continue;
     }
     ranked.push({

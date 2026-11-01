@@ -525,7 +525,7 @@ function Pending({ accounts, myHandle }: { accounts: PendingAccount[]; myHandle:
                   isMe && "text-orange-200 ring-orange-500/40",
                 )}
               >
-                <Avatar handle={a.handle} name={a.handle} url={null} size={22} />
+                <Avatar handle={a.handle} name={a.name ?? a.handle} url={a.avatarUrl} size={22} />
                 @{a.handle}
                 {isMe && <span className="font-semibold uppercase tracking-wide text-orange-300">You</span>}
               </a>

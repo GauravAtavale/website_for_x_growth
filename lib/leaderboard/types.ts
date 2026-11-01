@@ -45,6 +45,8 @@ export interface LeaderboardResponse {
 
 export interface PendingAccount {
   handle: string;
+  name: string | null;
+  avatarUrl: string | null;
   joinedAt: string;
 }
 
