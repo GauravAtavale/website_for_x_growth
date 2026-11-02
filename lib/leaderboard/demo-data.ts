@@ -116,7 +116,7 @@ export function demoLeaderboard(period: LeaderboardPeriod, now = new Date()): Le
   return {
     period,
     updatedAt: updatedAt.toISOString(),
-    nextUpdateAt: nextSnapshotAfter(now).toISOString(),
+    rankingsOpenAt: nextSnapshotAfter(now).toISOString(),
     totalParticipants: entries.length,
     totalGain: entries.reduce((sum, e) => sum + e.gain, 0),
     entries,

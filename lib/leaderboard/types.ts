@@ -31,13 +31,14 @@ export interface LeaderboardResponse {
   period: LeaderboardPeriod;
   /** ISO time of the snapshot the ranking is based on; null before the first update. */
   updatedAt: string | null;
-  /** ISO time of the next scheduled snapshot. */
-  nextUpdateAt: string;
+  /** When accounts that joined today get their first ranking: next midnight in New York (ISO). */
+  rankingsOpenAt: string;
   totalParticipants: number;
   /** Sum of `gain` across everyone, for the header stat. */
   totalGain: number;
   entries: LeaderboardEntry[];
-  /** Joined, but need two daily updates before they can be ranked. */
+  /** Joined, but need follower counts from two different days before they can be ranked.
+   *  Oldest sign-up first. */
   pending: PendingAccount[];
   /** True while the page is served from sample data instead of real snapshots. */
   demo: boolean;
@@ -48,6 +49,8 @@ export interface PendingAccount {
   name: string | null;
   avatarUrl: string | null;
   joinedAt: string;
+  /** Follower count when they signed up; null until the sign-up scraper has looked them up. */
+  signupFollowers: number | null;
 }
 
 export interface JoinResponse {

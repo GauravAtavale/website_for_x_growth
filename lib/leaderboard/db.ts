@@ -1,5 +1,5 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { nextSnapshotAfter } from "./demo-data";
+import { nextNyMidnight, nyDay as nyDayFn } from "./time";
 import type { LeaderboardEntry, LeaderboardPeriod, LeaderboardResponse, PendingAccount } from "./types";
 
 /* Minimal D1 types so we don't depend on generated cloudflare-env.d.ts. */
@@ -87,9 +87,7 @@ export function getScraperKey(): string | null {
 }
 
 /** Today's date in New York, YYYY-MM-DD. Snapshots are keyed by this. */
-export function nyDay(at = new Date()): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(at);
-}
+export const nyDay = nyDayFn;
 
 /** Active accounts the sign-up scraper hasn't looked at yet, oldest first. */
 export async function listNewSignups(db: D1Database, limit = 200) {
@@ -225,6 +223,7 @@ interface AccountRow {
   name: string | null;
   avatar_url: string | null;
   joined_at: string;
+  signup_followers: number | null;
 }
 interface SnapshotRow {
   handle: string;
@@ -278,7 +277,11 @@ export async function buildLeaderboard(db: D1Database, period: LeaderboardPeriod
 
   const accounts = (
     await db
-      .prepare(`SELECT handle, name, avatar_url, joined_at FROM accounts WHERE status = 'active' ORDER BY joined_at`)
+      .prepare(
+        `SELECT a.handle, a.name, a.avatar_url, a.joined_at, p.followers AS signup_followers
+         FROM accounts a LEFT JOIN signup_profiles p ON p.handle = a.handle
+         WHERE a.status = 'active' ORDER BY a.joined_at`,
+      )
       .all<AccountRow>()
   ).results;
 
@@ -319,6 +322,7 @@ export async function buildLeaderboard(db: D1Database, period: LeaderboardPeriod
         name: account.name,
         avatarUrl: account.avatar_url,
         joinedAt: account.joined_at,
+        signupFollowers: account.signup_followers ?? series[series.length - 1]?.followers ?? null,
       });
       continue;
     }
@@ -361,7 +365,7 @@ export async function buildLeaderboard(db: D1Database, period: LeaderboardPeriod
   return {
     period,
     updatedAt,
-    nextUpdateAt: nextSnapshotAfter(now).toISOString(),
+    rankingsOpenAt: nextNyMidnight(now).toISOString(),
     totalParticipants: accounts.length,
     totalGain: entries.reduce((sum, e) => sum + e.gain, 0),
     entries,

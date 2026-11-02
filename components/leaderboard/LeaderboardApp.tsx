@@ -9,7 +9,6 @@ import {
   type LeaderboardEntry,
   type LeaderboardPeriod,
   type LeaderboardResponse,
-  type PendingAccount,
 } from "@/lib/leaderboard/types";
 import {
   Avatar,
@@ -19,6 +18,7 @@ import {
   RankChange,
   Sparkline,
 } from "./parts";
+import { Competitors } from "./Competitors";
 
 const MY_HANDLE_KEY = "gs-leaderboard-handle";
 const PERIOD_LABEL: Record<LeaderboardPeriod, string> = { day: "today", week: "this week" };
@@ -73,6 +73,20 @@ export function LeaderboardApp() {
     [board, myHandle],
   );
 
+  const matches = (q: string, handle: string, name: string | null) =>
+    handle.toLowerCase().includes(q) || (name ?? "").toLowerCase().includes(q);
+
+  // Pending accounts keep their join position even when the search narrows the list.
+  const pendingRows = useMemo(() => {
+    if (!board) return [];
+    const q = query.trim().replace(/^@/, "").toLowerCase();
+    return board.pending
+      .map((p, i) => ({ p, order: i }))
+      .filter(({ p }) => !q || matches(q, p.handle, p.name));
+  }, [board, query]);
+
+  const hasRankings = (board?.entries.length ?? 0) > 0;
+
   const filtered = useMemo(() => {
     if (!board) return [];
     const q = query.trim().replace(/^@/, "").toLowerCase();
@@ -105,6 +119,7 @@ export function LeaderboardApp() {
 
       {/* Controls */}
       <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        {(!board || hasRankings) && (
         <SegmentedControl
           ariaLabel="Ranking period"
           className="sm:w-56"
@@ -115,7 +130,8 @@ export function LeaderboardApp() {
             { id: "day", label: "Today", tooltip: "Followers gained since midnight (New York time)" },
           ]}
         />
-        <label className="relative sm:w-64">
+        )}
+        <label className="relative sm:ml-auto sm:w-64">
           <span className="sr-only">Find a username</span>
           <svg
             viewBox="0 0 20 20"
@@ -146,13 +162,18 @@ export function LeaderboardApp() {
           />
         ) : !board ? (
           <LoadingRows />
-        ) : board.entries.length === 0 ? (
+        ) : !hasRankings ? (
           board.pending.length === 0 ? (
             <EmptyState title="No one here yet" body="Add your username above to be the first on the board." />
+          ) : pendingRows.length === 0 ? (
+            <EmptyState title={`No match for “${query.trim()}”`} body="Check the spelling, or add that username above." />
           ) : (
-            <EmptyState
-              title="No rankings yet"
-              body="Accounts are ranked from their second day on the board."
+            <Competitors
+              mode="prelaunch"
+              accounts={pendingRows.map((r) => r.p)}
+              joinOrder={pendingRows.map((r) => r.order)}
+              openAt={board.rankingsOpenAt}
+              myHandle={myHandle}
             />
           )
         ) : (
@@ -169,8 +190,14 @@ export function LeaderboardApp() {
             </p>
           </>
         )}
-        {board && board.pending.length > 0 && !query.trim() && (
-          <Pending accounts={board.pending} myHandle={myHandle} />
+        {board && hasRankings && pendingRows.length > 0 && (
+          <Competitors
+            mode="newcomers"
+            accounts={pendingRows.map((r) => r.p)}
+            joinOrder={pendingRows.map((r) => r.order)}
+            openAt={board.rankingsOpenAt}
+            myHandle={myHandle}
+          />
         )}
       </section>
 
@@ -497,42 +524,6 @@ function MyRankBar({
           {formatGain(entry.gain)}
         </span>
       </button>
-    </div>
-  );
-}
-
-function Pending({ accounts, myHandle }: { accounts: PendingAccount[]; myHandle: string | null }) {
-  return (
-    <div className="mt-8">
-      <h2 className="text-sm font-medium text-foreground">
-        Waiting for their first ranking{" "}
-        <span className="font-normal text-muted-foreground">· {nf.format(accounts.length)}</span>
-      </h2>
-      <p className="mt-1 text-xs text-muted-foreground">
-        New accounts are ranked from their second day on the board.
-      </p>
-      <ul className="mt-3 flex flex-wrap gap-2">
-        {accounts.map((a) => {
-          const isMe = myHandle?.toLowerCase() === a.handle.toLowerCase();
-          return (
-            <li key={a.handle}>
-              <a
-                href={`https://x.com/${a.handle}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={cn(
-                  "inline-flex items-center gap-2 rounded-full bg-card py-1 pl-1 pr-3 text-xs text-muted-foreground ring-1 ring-border transition-colors hover:text-foreground",
-                  isMe && "text-orange-200 ring-orange-500/40",
-                )}
-              >
-                <Avatar handle={a.handle} name={a.name ?? a.handle} url={a.avatarUrl} size={22} />
-                @{a.handle}
-                {isMe && <span className="font-semibold uppercase tracking-wide text-orange-300">You</span>}
-              </a>
-            </li>
-          );
-        })}
-      </ul>
     </div>
   );
 }
