@@ -11,6 +11,8 @@ interface ShareToXButtonProps {
   getImage: () => Promise<Blob>;
   filename?: string;
   text?: string;
+  /** Link added to the post (default: the site's home page). */
+  url?: string;
   disabled?: boolean;
   className?: string;
   label?: string;
@@ -21,6 +23,7 @@ export function ShareToXButton({
   getImage,
   filename,
   text,
+  url,
   disabled,
   className,
   label = "Share to X",
@@ -30,7 +33,7 @@ export function ShareToXButton({
   async function onClick() {
     setBusy(true);
     try {
-      await shareImageToX(getImage(), { filename, text });
+      await shareImageToX(getImage(), { filename, text, url });
     } catch (error) {
       toast.error("Couldn't share the image", {
         description: error instanceof Error ? error.message : undefined,

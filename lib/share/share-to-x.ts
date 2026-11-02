@@ -63,16 +63,20 @@ export type ShareOutcome = "shared" | "copied" | "downloaded" | "cancelled";
  */
 export async function shareImageToX(
   image: Blob | Promise<Blob>,
-  { filename = "growth-studio.png", text = DEFAULT_SHARE_TEXT }: { filename?: string; text?: string } = {},
+  {
+    filename = "growth-studio.png",
+    text = DEFAULT_SHARE_TEXT,
+    url = SITE_URL,
+  }: { filename?: string; text?: string; url?: string } = {},
 ): Promise<ShareOutcome> {
-  const postUrl = xPostUrl(text);
+  const postUrl = xPostUrl(text, url);
 
   if (prefersShareSheet()) {
     const blob = await image;
     const file = new File([blob], filename, { type: blob.type || "image/png" });
     if (navigator.canShare?.({ files: [file] })) {
       try {
-        await navigator.share({ files: [file], text: `${text}\n${SITE_URL}` });
+        await navigator.share({ files: [file], text: `${text}\n${url}` });
         return "shared";
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return "cancelled";

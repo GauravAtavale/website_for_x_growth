@@ -19,6 +19,8 @@ import {
   Sparkline,
 } from "./parts";
 import { Competitors } from "./Competitors";
+import { ShareToXButton } from "@/components/share/ShareToXButton";
+import { renderShareCard } from "./share-card";
 
 const MY_HANDLE_KEY = "gs-leaderboard-handle";
 const PERIOD_LABEL: Record<LeaderboardPeriod, string> = { day: "today", week: "this week" };
@@ -151,6 +153,7 @@ export function LeaderboardApp() {
             className="h-9 w-full rounded-md bg-foreground/[0.04] pl-9 pr-3 text-sm text-foreground ring-1 ring-inset ring-foreground/10 outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-orange-400/50"
           />
         </label>
+        {board && hasRankings && <ShareButton board={board} me={me} period={period} />}
       </div>
 
       {/* Board */}
@@ -525,6 +528,40 @@ function MyRankBar({
         </span>
       </button>
     </div>
+  );
+}
+
+/** Shares an image of the board (with the viewer's rank if they're on it) to X. */
+function ShareButton({
+  board,
+  me,
+  period,
+}: {
+  board: LeaderboardResponse;
+  me: LeaderboardEntry | null;
+  period: LeaderboardPeriod;
+}) {
+  const when = PERIOD_LABEL[period];
+  const text = me
+    ? `I'm #${me.rank} of ${board.entries.length} on the X Growth Leaderboard ${when}, ${formatGain(me.gain)} followers 📈\n\nSee where you rank 👇`
+    : `Who's growing fastest on X ${when}? 📈 Ranked by new followers, not by size.\n\nAdd your @ and see where you rank 👇`;
+
+  return (
+    <ShareToXButton
+      label={me ? "Share my rank" : "Share leaderboard"}
+      className="h-9 shrink-0"
+      filename={me ? `x-growth-rank-${me.handle}.png` : "x-growth-leaderboard.png"}
+      text={text}
+      url={typeof window !== "undefined" ? `${window.location.origin}/leaderboard` : undefined}
+      getImage={() =>
+        renderShareCard({
+          board,
+          me,
+          period,
+          siteLabel: `${window.location.host}/leaderboard`,
+        })
+      }
+    />
   );
 }
 
