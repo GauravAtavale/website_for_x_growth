@@ -163,6 +163,62 @@ export async function saveSignupProfiles(db: D1Database, profiles: SignupProfile
 }
 
 /* ------------------------------------------------------------------ */
+/* Hourly tracker                                                       */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Every active account, with when it was last read. The tracker skips accounts
+ * read recently, so a run that was stopped part-way can simply be re-run.
+ */
+export async function listTrackedAccounts(db: D1Database) {
+  await ensureSchema(db);
+  const rows = await db
+    .prepare(
+      `SELECT a.handle, MAX(s.checked_at) AS last_checked_at FROM accounts a
+       LEFT JOIN snapshots s ON s.handle = a.handle
+       WHERE a.status = 'active'
+       GROUP BY a.handle
+       ORDER BY last_checked_at IS NOT NULL, last_checked_at, a.joined_at`,
+    )
+    .all<{ handle: string; last_checked_at: string | null }>();
+  return rows.results.map((r) => ({ handle: r.handle, lastCheckedAt: r.last_checked_at }));
+}
+
+/**
+ * Saves one hourly reading per account. Snapshots hold one row per account per
+ * New York day, so each reading replaces that day's earlier one: during the day
+ * it is "followers right now", and the last reading of the day is the day's close
+ * that tomorrow's gains are measured from. Name and photo are refreshed too.
+ */
+export async function saveReadings(db: D1Database, readings: SignupProfile[]) {
+  await ensureSchema(db);
+  const now = new Date();
+  const checkedAt = now.toISOString();
+  const day = nyDay(now);
+  const statements: D1PreparedStatement[] = [];
+
+  for (const r of readings) {
+    if (r.status === "ok") {
+      const handle = r.canonicalHandle || r.handle;
+      statements.push(
+        db.prepare(
+          `UPDATE accounts SET handle = ?, name = COALESCE(?, name), avatar_url = COALESCE(?, avatar_url)
+           WHERE handle = ?`,
+        ).bind(handle, r.name ?? null, r.avatarUrl ?? null, r.handle),
+        db.prepare(
+          `INSERT INTO snapshots (handle, day, followers, checked_at) VALUES (?, ?, ?, ?)
+           ON CONFLICT(handle, day) DO UPDATE SET followers = excluded.followers, checked_at = excluded.checked_at`,
+        ).bind(handle, day, r.followers!, checkedAt),
+      );
+    } else {
+      statements.push(db.prepare(`UPDATE accounts SET status = ? WHERE handle = ?`).bind(r.status, r.handle));
+    }
+  }
+  if (statements.length) await db.batch(statements);
+  return { saved: readings.length, day };
+}
+
+/* ------------------------------------------------------------------ */
 
 interface AccountRow {
   handle: string;

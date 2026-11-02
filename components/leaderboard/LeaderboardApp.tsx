@@ -97,7 +97,7 @@ export function LeaderboardApp() {
 
       {board?.demo && (
         <p className="mt-8 rounded-lg bg-orange-500/[0.07] px-4 py-2.5 text-center text-[13px] text-orange-200/80 ring-1 ring-inset ring-orange-500/20">
-          Preview with sample accounts. Real rankings appear after the first daily update.
+          Preview with sample accounts. Real rankings appear once followers have been tracked for a day.
         </p>
       )}
 
@@ -111,8 +111,8 @@ export function LeaderboardApp() {
           value={period}
           onChange={(v) => setPeriod(v as LeaderboardPeriod)}
           options={[
-            { id: "week", label: "This week", tooltip: "Followers gained over the last 7 daily updates" },
-            { id: "day", label: "Today", tooltip: "Followers gained since the previous daily update" },
+            { id: "week", label: "This week", tooltip: "Followers gained over the last 7 days" },
+            { id: "day", label: "Today", tooltip: "Followers gained since midnight (New York time)" },
           ]}
         />
         <label className="relative sm:w-64">
@@ -152,7 +152,7 @@ export function LeaderboardApp() {
           ) : (
             <EmptyState
               title="No rankings yet"
-              body="Rankings start once there are two daily updates to compare."
+              body="Accounts are ranked from their second day on the board."
             />
           )
         ) : (
@@ -220,7 +220,7 @@ function Hero({
       setMessage(
         body.status === "already_joined"
           ? `@${body.handle} is already on the board.`
-          : `You're in, @${body.handle}. Your first ranking shows up after the next update.`,
+          : `You're in, @${body.handle}. You'll be ranked from tomorrow.`,
       );
     } catch (err) {
       setState("error");
@@ -241,7 +241,7 @@ function Hero({
             <span className="absolute inline-flex size-full rounded-full bg-orange-400 opacity-70 motion-safe:animate-ping" />
             <span className="relative inline-flex size-2 rounded-full bg-orange-500" />
           </span>
-          Updated daily
+          Updated hourly
         </span>
         <h1 className="mt-5 text-4xl font-semibold tracking-[-0.035em] text-foreground sm:text-5xl">
           X Growth{" "}
@@ -251,7 +251,7 @@ function Hero({
         </h1>
         <p className="mt-4 max-w-lg text-[15px] leading-relaxed text-muted-foreground">
           Add your X username and see how many new followers you gain compared with everyone else.
-          Rankings refresh once a day.
+          Rankings refresh every hour.
         </p>
 
         <form onSubmit={submit} className="mt-8 flex w-full max-w-md flex-col gap-2 sm:flex-row" noValidate>
@@ -291,7 +291,7 @@ function Hero({
         >
           {message ??
             (myHandle && !alreadyRanked
-              ? `Tracking @${myHandle}. You'll appear after the next update.`
+              ? `Tracking @${myHandle}. You'll be ranked from tomorrow.`
               : "No sign-up. Your profile just needs to be public.")}
         </p>
       </div>
@@ -509,7 +509,7 @@ function Pending({ accounts, myHandle }: { accounts: PendingAccount[]; myHandle:
         <span className="font-normal text-muted-foreground">· {nf.format(accounts.length)}</span>
       </h2>
       <p className="mt-1 text-xs text-muted-foreground">
-        New accounts are ranked once they have two daily updates to compare.
+        New accounts are ranked from their second day on the board.
       </p>
       <ul className="mt-3 flex flex-wrap gap-2">
         {accounts.map((a) => {
