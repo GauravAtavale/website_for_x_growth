@@ -25,10 +25,29 @@ export interface LeaderboardEntry {
   history: number[];
   /** ISO date the handle joined the leaderboard. */
   joinedAt: string;
+  /** Week view only: joined after the week began, so their count starts at the
+   *  midnight after they joined. `startDay` is that first counted day. */
+  lateStart: boolean;
+  startDay: string | null;
+}
+
+export interface WeekInfo {
+  /** The week this response is about (week view), or the current week (day view). */
+  number: number;
+  /** Monday and Sunday, YYYY-MM-DD (New York). */
+  start: string;
+  end: string;
+  /** True for the week happening now; false for a finished (archived) week. */
+  isCurrent: boolean;
+  /** The current week's number, so the page can link past weeks. */
+  currentNumber: number;
+  /** ISO time the current week ends (next Monday midnight in New York). */
+  endsAt: string;
 }
 
 export interface LeaderboardResponse {
   period: LeaderboardPeriod;
+  week: WeekInfo;
   /** ISO time of the snapshot the ranking is based on; null before the first update. */
   updatedAt: string | null;
   /** When accounts that joined today get their first ranking: next midnight in New York (ISO). */

@@ -138,10 +138,19 @@ export async function renderShareCard({
   me,
   period,
   siteLabel,
+  periodText,
+  eyebrowText,
+  archivedWeek,
 }: {
   board: LeaderboardResponse;
   me: LeaderboardEntry | null;
   period: LeaderboardPeriod;
+  /** Words after "followers", e.g. "this week", "today", "in week 1". */
+  periodText?: string;
+  /** Text after "X GROWTH LEADERBOARD · ", e.g. "WEEK 2 · NOV 9–15". */
+  eyebrowText?: string;
+  /** Set for a finished week: the headline becomes "Who grew fastest in Week N?". */
+  archivedWeek?: number;
   /** e.g. "growth-studio.gauravatavale.workers.dev/leaderboard" */
   siteLabel: string;
 }): Promise<Blob> {
@@ -184,7 +193,8 @@ export async function renderShareCard({
 
   // Eyebrow
   ctx.font = `600 15px ${font}`;
-  const eyebrow = `X GROWTH LEADERBOARD · ${PERIOD_TEXT[period].toUpperCase()}`;
+  const when = periodText ?? PERIOD_TEXT[period];
+  const eyebrow = `X GROWTH LEADERBOARD · ${eyebrowText ?? PERIOD_TEXT[period].toUpperCase()}`;
   const ew = ctx.measureText(eyebrow).width;
   roundRect(ctx, L, 60, ew + 52, 34, 17);
   ctx.fillStyle = "rgba(255,255,255,0.06)";
@@ -224,16 +234,19 @@ export async function renderShareCard({
     const gw = ctx.measureText(g).width;
     ctx.fillStyle = C.muted;
     ctx.font = `500 24px ${font}`;
-    ctx.fillText(`followers ${PERIOD_TEXT[period]}`, L + gw + 12, 462);
+    ctx.fillText(`followers ${when}`, L + gw + 12, 462);
   } else {
     ctx.fillStyle = C.text;
     ctx.font = `700 64px ${font}`;
-    ctx.fillText("Who's growing", L, 230);
-    ctx.fillText("fastest on X", L, 304);
+    const [line1, line2, line3] = archivedWeek
+      ? ["Who grew", "fastest in", `Week ${archivedWeek}?`]
+      : ["Who's growing", "fastest on X", "right now?"];
+    ctx.fillText(line1, L, 230);
+    ctx.fillText(line2, L, 304);
     ctx.font = `700 64px ${font}`;
-    const tw = ctx.measureText("right now?").width;
+    const tw = ctx.measureText(line3).width;
     ctx.fillStyle = brandGradient(ctx, L, L + tw);
-    ctx.fillText("right now?", L, 378);
+    ctx.fillText(line3, L, 378);
     ctx.fillStyle = C.muted;
     ctx.font = `400 24px ${font}`;
     ctx.fillText("Ranked by new followers, not by size.", L, 440);

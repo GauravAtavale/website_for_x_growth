@@ -1,5 +1,6 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { nextNyMidnight, nyDay as nyDayFn } from "./time";
+import { nextNyMidnight, nyMidnightOn as nextNyMidnightOn, nyDay as nyDayFn } from "./time";
+import { addDays, weekOf, weekRange } from "./weeks";
 import type { LeaderboardEntry, LeaderboardPeriod, LeaderboardResponse, PendingAccount } from "./types";
 
 /* Minimal D1 types so we don't depend on generated cloudflare-env.d.ts. */
@@ -233,13 +234,7 @@ interface SnapshotRow {
 }
 
 const HISTORY_POINTS = 8;
-const LOOKBACK_DAYS = 16; // enough for this week + last week's ranks
-
-function addDays(day: string, n: number): string {
-  const d = new Date(`${day}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + n);
-  return d.toISOString().slice(0, 10);
-}
+const BASELINE_LOOKBACK_DAYS = 30; // how far back to look for a week's starting reading
 
 /** Last snapshot on or before `day`. `series` is sorted oldest first. */
 function atOrBefore(series: SnapshotRow[], day: string): SnapshotRow | undefined {
@@ -247,23 +242,29 @@ function atOrBefore(series: SnapshotRow[], day: string): SnapshotRow | undefined
   return undefined;
 }
 
+/** "Today": latest reading on or before `asOf` minus the reading before it. */
+function dayGain(series: SnapshotRow[], asOf: string) {
+  const end = atOrBefore(series, asOf);
+  if (!end) return null;
+  const base = atOrBefore(series, addDays(end.day, -1));
+  if (!base) return null;
+  return { gain: end.followers - base.followers, end, base, late: false };
+}
+
 /**
- * Gain for one account as of `asOf`:
- *   day  -> latest snapshot minus the snapshot before it
- *   week -> latest snapshot minus the last one at least 7 days earlier
- *           (or the first one, if the account joined less than a week ago)
- * Returns null when there are fewer than two snapshots to compare.
+ * A week's gain as of `asOf` (a day inside the week):
+ *   end  = latest reading on or before `asOf`, which must fall inside the week
+ *   base = the closing reading of the Sunday before the week (or the last one before it);
+ *          for someone who joined during the week, the closing reading of the day they
+ *          joined, so their count starts at the following midnight ("late start")
+ * Returns null when there's no reading inside the week after the base yet.
  */
-function gainAsOf(series: SnapshotRow[], period: LeaderboardPeriod, asOf: string) {
-  const latest = atOrBefore(series, asOf);
-  if (!latest) return null;
-  const earlier = series.filter((s) => s.day < latest.day);
-  if (earlier.length === 0) return null;
-  const base =
-    period === "day"
-      ? earlier[earlier.length - 1]
-      : (atOrBefore(earlier, addDays(latest.day, -7)) ?? earlier[0]);
-  return { gain: latest.followers - base.followers, latest, base };
+function weekGain(series: SnapshotRow[], weekStart: string, asOf: string) {
+  const end = atOrBefore(series, asOf);
+  if (!end || end.day < weekStart) return null;
+  const base = atOrBefore(series, addDays(weekStart, -1)) ?? series.find((s) => s.day >= weekStart);
+  if (!base || base.day >= end.day) return null;
+  return { gain: end.followers - base.followers, end, base, late: base.day >= weekStart };
 }
 
 function rankMap(gains: Array<{ handle: string; gain: number; followers: number }>) {
@@ -271,9 +272,24 @@ function rankMap(gains: Array<{ handle: string; gain: number; followers: number 
   return new Map(sorted.map((g, i) => [g.handle.toLowerCase(), i + 1]));
 }
 
-export async function buildLeaderboard(db: D1Database, period: LeaderboardPeriod): Promise<LeaderboardResponse> {
+/**
+ * period "day":  today's ranking (since midnight).
+ * period "week": the given week's ranking (default: the current week). A past week
+ *                is computed the same way from its saved readings, so it's an archive.
+ */
+export async function buildLeaderboard(
+  db: D1Database,
+  period: LeaderboardPeriod,
+  requestedWeek?: number,
+): Promise<LeaderboardResponse> {
   await ensureSchema(db);
   const now = new Date();
+  const today = nyDay(now);
+  const currentWeek = weekOf(today);
+  const weekNumber = period === "week" ? Math.min(Math.max(1, requestedWeek ?? currentWeek), currentWeek) : currentWeek;
+  const isCurrent = weekNumber === currentWeek;
+  const { start: weekStart, end: weekEnd } = weekRange(weekNumber);
+  const lastDay = isCurrent ? today : weekEnd; // nothing after this day counts
 
   const accounts = (
     await db
@@ -285,17 +301,14 @@ export async function buildLeaderboard(db: D1Database, period: LeaderboardPeriod
       .all<AccountRow>()
   ).results;
 
-  const latestDay =
-    (await db.prepare(`SELECT MAX(day) AS day FROM snapshots`).first<{ day: string | null }>())?.day ?? null;
-
-  const snapshots = latestDay
-    ? (
-        await db
-          .prepare(`SELECT handle, day, followers, checked_at FROM snapshots WHERE day >= ? ORDER BY day`)
-          .bind(addDays(latestDay, -LOOKBACK_DAYS))
-          .all<SnapshotRow>()
-      ).results
-    : [];
+  const firstDay = period === "week" ? addDays(weekStart, -BASELINE_LOOKBACK_DAYS) : addDays(today, -HISTORY_POINTS - 2);
+  const snapshots = (
+    await db
+      .prepare(`SELECT handle, day, followers, checked_at FROM snapshots WHERE day >= ? AND day <= ? ORDER BY day`)
+      .bind(firstDay, lastDay)
+      .all<SnapshotRow>()
+  ).results;
+  const latestDay = snapshots.length ? snapshots[snapshots.length - 1].day : null;
 
   const byHandle = new Map<string, SnapshotRow[]>();
   for (const s of snapshots) {
@@ -303,57 +316,63 @@ export async function buildLeaderboard(db: D1Database, period: LeaderboardPeriod
     (byHandle.get(key) ?? byHandle.set(key, []).get(key)!).push(s);
   }
 
-  const ranked: Array<{
-    account: AccountRow;
-    series: SnapshotRow[];
-    gain: number;
-    followers: number;
-    startFollowers: number;
-  }> = [];
+  const gainOf = (series: SnapshotRow[], asOf: string) =>
+    period === "week" ? weekGain(series, weekStart, asOf) : dayGain(series, asOf);
+  // Rank movement compares with the day before; on a week's first day there's nothing to compare.
+  const previousDay = latestDay ? addDays(latestDay, -1) : null;
+  const comparePrevious = previousDay !== null && (period === "day" || previousDay >= weekStart);
+
+  const ranked: Array<{ account: AccountRow; series: SnapshotRow[]; g: NonNullable<ReturnType<typeof gainOf>> }> = [];
   const pending: PendingAccount[] = [];
   const previous: Array<{ handle: string; gain: number; followers: number }> = [];
 
   for (const account of accounts) {
     const series = byHandle.get(account.handle.toLowerCase()) ?? [];
-    const now_ = latestDay ? gainAsOf(series, period, latestDay) : null;
-    if (!now_) {
-      pending.push({
-        handle: account.handle,
-        name: account.name,
-        avatarUrl: account.avatar_url,
-        joinedAt: account.joined_at,
-        signupFollowers: account.signup_followers ?? series[series.length - 1]?.followers ?? null,
-      });
+    const g = latestDay ? gainOf(series, latestDay) : null;
+    if (!g) {
+      // Past weeks only list who took part; waiting lists belong to the current week.
+      if (isCurrent) {
+        pending.push({
+          handle: account.handle,
+          name: account.name,
+          avatarUrl: account.avatar_url,
+          joinedAt: account.joined_at,
+          signupFollowers: account.signup_followers ?? series[series.length - 1]?.followers ?? null,
+        });
+      }
       continue;
     }
-    ranked.push({
-      account,
-      series,
-      gain: now_.gain,
-      followers: now_.latest.followers,
-      startFollowers: now_.base.followers,
-    });
-    const prev = gainAsOf(series, period, addDays(latestDay!, -1));
-    if (prev) previous.push({ handle: account.handle, gain: prev.gain, followers: prev.latest.followers });
+    ranked.push({ account, series, g });
+    if (comparePrevious) {
+      const prev = gainOf(series, previousDay!);
+      if (prev) previous.push({ handle: account.handle, gain: prev.gain, followers: prev.end.followers });
+    }
   }
 
-  const currentRanks = rankMap(ranked.map((r) => ({ handle: r.account.handle, gain: r.gain, followers: r.followers })));
+  const currentRanks = rankMap(ranked.map((r) => ({ handle: r.account.handle, gain: r.g.gain, followers: r.g.end.followers })));
   const previousRanks = rankMap(previous);
 
   const entries: LeaderboardEntry[] = ranked
-    .map((r) => {
-      const key = r.account.handle.toLowerCase();
+    .map(({ account, series, g }) => {
+      const key = account.handle.toLowerCase();
+      // Week view: the trend runs from the starting reading to now. Day view: the last 8 days.
+      const trend =
+        period === "week"
+          ? series.filter((s) => s.day >= g.base.day && s.day <= g.end.day)
+          : series.filter((s) => s.day <= g.end.day).slice(-HISTORY_POINTS);
       return {
         rank: currentRanks.get(key)!,
-        previousRank: previousRanks.get(key) ?? null,
-        handle: r.account.handle,
-        name: r.account.name ?? r.account.handle,
-        avatarUrl: r.account.avatar_url,
-        followers: r.followers,
-        startFollowers: r.startFollowers,
-        gain: r.gain,
-        history: r.series.slice(-HISTORY_POINTS).map((s) => s.followers),
-        joinedAt: r.account.joined_at,
+        previousRank: comparePrevious ? (previousRanks.get(key) ?? null) : null,
+        handle: account.handle,
+        name: account.name ?? account.handle,
+        avatarUrl: account.avatar_url,
+        followers: g.end.followers,
+        startFollowers: g.base.followers,
+        gain: g.gain,
+        history: trend.map((s) => s.followers),
+        joinedAt: account.joined_at,
+        lateStart: g.late,
+        startDay: g.late ? addDays(g.base.day, 1) : null,
       };
     })
     .sort((a, b) => a.rank - b.rank);
@@ -364,9 +383,17 @@ export async function buildLeaderboard(db: D1Database, period: LeaderboardPeriod
 
   return {
     period,
+    week: {
+      number: weekNumber,
+      start: weekStart,
+      end: weekEnd,
+      isCurrent,
+      currentNumber: currentWeek,
+      endsAt: nextNyMidnightOn(addDays(weekRange(currentWeek).end, 1)).toISOString(),
+    },
     updatedAt,
     rankingsOpenAt: nextNyMidnight(now).toISOString(),
-    totalParticipants: accounts.length,
+    totalParticipants: isCurrent ? accounts.length : entries.length,
     totalGain: entries.reduce((sum, e) => sum + e.gain, 0),
     entries,
     pending,

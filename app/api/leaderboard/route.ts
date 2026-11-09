@@ -7,7 +7,8 @@ import { checkRateLimit } from "@/lib/rate-limit";
 export const dynamic = "force-dynamic";
 
 /**
- * GET  /api/leaderboard?period=day|week  -> LeaderboardResponse
+ * GET  /api/leaderboard?period=day|week[&week=N]  -> LeaderboardResponse
+ *      week=N picks a past week (archive); without it, the current week
  *      add &demo=1 to see the sample data instead of the database
  * POST /api/leaderboard  { handle }      -> JoinResponse
  *
@@ -24,7 +25,9 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const board = await buildLeaderboard(db, period);
+    const weekParam = Number(params.get("week"));
+    const week = Number.isInteger(weekParam) && weekParam > 0 ? weekParam : undefined;
+    const board = await buildLeaderboard(db, period, week);
     // Short cache: a new sign-up should show up within a minute.
     return NextResponse.json(board, { headers: { "Cache-Control": "public, max-age=30" } });
   } catch (err) {

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { cn } from "@/lib/utils";
@@ -17,13 +18,20 @@ import {
   nf,
   RankChange,
   Sparkline,
+  useNow,
 } from "./parts";
 import { Competitors } from "./Competitors";
 import { ShareToXButton } from "@/components/share/ShareToXButton";
 import { renderShareCard } from "./share-card";
+import { formatDay, formatWeekRange } from "@/lib/leaderboard/weeks";
 
 const MY_HANDLE_KEY = "gs-leaderboard-handle";
-const PERIOD_LABEL: Record<LeaderboardPeriod, string> = { day: "today", week: "this week" };
+
+/** "today" / "this week" / "in week 1" — used in labels across the page. */
+function periodWords(period: LeaderboardPeriod, archiveWeek?: number): string {
+  if (period === "day") return "today";
+  return archiveWeek ? `in week ${archiveWeek}` : "this week";
+}
 
 const ctaClassName =
   "inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg px-5 text-sm font-semibold text-white shadow-[0_8px_24px_-8px_rgba(249,115,22,0.7)] transition-[transform,filter] duration-150 hover:brightness-110 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background bg-gradient-to-r from-[#ff5a5f] to-[#ff8a00]";
@@ -46,7 +54,11 @@ function saveMyHandle(handle: string) {
 
 /* ------------------------------------------------------------------ */
 
-export function LeaderboardApp() {
+/**
+ * The leaderboard page. Without `archiveWeek` it shows the current week (and Today);
+ * with it, the frozen results of that past week.
+ */
+export function LeaderboardApp({ archiveWeek }: { archiveWeek?: number } = {}) {
   const [period, setPeriod] = useState<LeaderboardPeriod>("week");
   const [data, setData] = useState<Partial<Record<LeaderboardPeriod, LeaderboardResponse>>>({});
   const [error, setError] = useState(false);
@@ -59,16 +71,18 @@ export function LeaderboardApp() {
     if (data[period]) return;
     let alive = true;
     setError(false);
-    fetch(`/api/leaderboard?period=${period}`, { cache: "no-store" })
+    const weekParam = archiveWeek ? `&week=${archiveWeek}` : "";
+    fetch(`/api/leaderboard?period=${period}${weekParam}`, { cache: "no-store" })
       .then((r) => (r.ok ? (r.json() as Promise<LeaderboardResponse>) : Promise.reject()))
       .then((body) => alive && setData((d) => ({ ...d, [period]: body })))
       .catch(() => alive && setError(true));
     return () => {
       alive = false;
     };
-  }, [period, data]);
+  }, [period, data, archiveWeek]);
 
   const board = data[period];
+  const when = periodWords(period, archiveWeek);
 
   const me = useMemo(
     () => board?.entries.find((e) => myHandle && e.handle.toLowerCase() === myHandle.toLowerCase()) ?? null,
@@ -101,15 +115,19 @@ export function LeaderboardApp() {
 
   return (
     <div className="mx-auto w-full max-w-4xl">
-      <Hero
-        onJoined={(h) => {
-          saveMyHandle(h);
-          setMyHandle(h);
-          setData({}); // refetch so the new account shows up
-        }}
-        myHandle={myHandle}
-        alreadyRanked={Boolean(me)}
-      />
+      {archiveWeek ? (
+        <ArchiveHero week={archiveWeek} board={board} />
+      ) : (
+        <Hero
+          onJoined={(h) => {
+            saveMyHandle(h);
+            setMyHandle(h);
+            setData({}); // refetch so the new account shows up
+          }}
+          myHandle={myHandle}
+          alreadyRanked={Boolean(me)}
+        />
+      )}
 
       {board?.demo && (
         <p className="mt-8 rounded-lg bg-orange-500/[0.07] px-4 py-2.5 text-center text-[13px] text-orange-200/80 ring-1 ring-inset ring-orange-500/20">
@@ -117,18 +135,19 @@ export function LeaderboardApp() {
         </p>
       )}
 
-      <Stats board={board} period={period} />
+      <Stats board={board} when={when} archived={Boolean(archiveWeek)} />
+      {board && <WeekBar board={board} />}
 
       {/* Controls */}
       <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        {(!board || hasRankings) && (
+        {!archiveWeek && (!board || hasRankings) && (
         <SegmentedControl
           ariaLabel="Ranking period"
           className="sm:w-56"
           value={period}
           onChange={(v) => setPeriod(v as LeaderboardPeriod)}
           options={[
-            { id: "week", label: "This week", tooltip: "Followers gained over the last 7 days" },
+            { id: "week", label: "This week", tooltip: "Followers gained since Monday (New York time)" },
             { id: "day", label: "Today", tooltip: "Followers gained since midnight (New York time)" },
           ]}
         />
@@ -153,11 +172,11 @@ export function LeaderboardApp() {
             className="h-9 w-full rounded-md bg-foreground/[0.04] pl-9 pr-3 text-sm text-foreground ring-1 ring-inset ring-foreground/10 outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-orange-400/50"
           />
         </label>
-        {board && hasRankings && <ShareButton board={board} me={me} period={period} />}
+        {board && hasRankings && <ShareButton board={board} me={me} period={period} when={when} />}
       </div>
 
       {/* Board */}
-      <section aria-label={`Leaderboard, ${PERIOD_LABEL[period]}`} className="mt-6">
+      <section aria-label={`Leaderboard, ${when}`} className="mt-6">
         {error && !board ? (
           <EmptyState
             title="Couldn't load the leaderboard"
@@ -167,7 +186,11 @@ export function LeaderboardApp() {
           <LoadingRows />
         ) : !hasRankings ? (
           board.pending.length === 0 ? (
-            <EmptyState title="No one here yet" body="Add your username above to be the first on the board." />
+            archiveWeek ? (
+              <EmptyState title="No results for this week" body="Nobody had readings during this week." />
+            ) : (
+              <EmptyState title="No one here yet" body="Add your username above to be the first on the board." />
+            )
           ) : pendingRows.length === 0 ? (
             <EmptyState title={`No match for “${query.trim()}”`} body="Check the spelling, or add that username above." />
           ) : (
@@ -184,12 +207,15 @@ export function LeaderboardApp() {
             {filtered.length === 0 ? (
               <EmptyState title={`No match for “${query.trim()}”`} body="Check the spelling, or add that username above." />
             ) : (
-              <Table rows={filtered} period={period} myHandle={myHandle} />
+              <Table rows={filtered} period={period} when={when} myHandle={myHandle} />
             )}
             <p className="mt-4 text-center text-xs text-muted-foreground/70">
-              Ranked by net new followers {PERIOD_LABEL[period]} (new follows minus unfollows).
-              {board.updatedAt &&
-                ` Updated ${new Date(board.updatedAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}.`}
+              {period === "week"
+                ? `Ranked by net new followers in Week ${board.week.number} (${formatWeekRange(board.week.start, board.week.end)}), new follows minus unfollows. People who join during the week count from the midnight after they join.`
+                : "Ranked by net new followers since midnight New York time (new follows minus unfollows)."}
+              {board.week.isCurrent && board.updatedAt
+                ? ` Updated ${new Date(board.updatedAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}.`
+                : !board.week.isCurrent && " Final results."}
             </p>
           </>
         )}
@@ -204,7 +230,7 @@ export function LeaderboardApp() {
         )}
       </section>
 
-      {me && board && <MyRankBar entry={me} total={board.totalParticipants} period={period} />}
+      {me && board && <MyRankBar entry={me} total={board.entries.length} when={when} />}
     </div>
   );
 }
@@ -333,15 +359,17 @@ function Hero({
 
 function Stats({
   board,
-  period,
+  when,
+  archived,
 }: {
   board: LeaderboardResponse | undefined;
-  period: LeaderboardPeriod;
+  when: string;
+  archived: boolean;
 }) {
   const tiles = [
-    { label: "On the board", value: board ? nf.format(board.totalParticipants) : "—" },
+    { label: archived ? "Took part" : "On the board", value: board ? nf.format(board.totalParticipants) : "—" },
     {
-      label: `Followers gained ${PERIOD_LABEL[period]}`,
+      label: `Followers gained ${when}`,
       value: board && board.entries.length > 0 ? formatGain(board.totalGain) : "—",
       accent: true,
     },
@@ -390,10 +418,12 @@ function YouChip({ className }: { className?: string }) {
 function Table({
   rows,
   period,
+  when,
   myHandle,
 }: {
   rows: LeaderboardEntry[];
   period: LeaderboardPeriod;
+  when: string;
   myHandle: string | null;
 }) {
   const isWeek = period === "week";
@@ -417,7 +447,7 @@ function Table({
         <span>Account</span>
         {isWeek && <span className="hidden text-right sm:block">Followers at week start</span>}
         <span className="hidden text-right sm:block">{isWeek ? "Followers now" : "Followers"}</span>
-        {isWeek && <span className="hidden text-center sm:block">Last 7 days</span>}
+        {isWeek && <span className="hidden text-center sm:block">Trend</span>}
         <span className="text-right">{isWeek ? "Followers gained" : "Followers gained today"}</span>
       </div>
       <ol>
@@ -451,6 +481,15 @@ function Table({
                     <span className="flex items-center gap-2">
                       <span className="truncate text-sm font-medium text-foreground">{e.name}</span>
                       {isMe && <YouChip />}
+                      {isWeek && e.lateStart && e.startDay && (
+                        <span
+                          className="shrink-0 rounded-full bg-sky-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-300 ring-1 ring-inset ring-sky-500/25"
+                          title={`Joined during the week, counting from ${formatDay(e.startDay)}`}
+                        >
+                          <span className="sm:hidden">Late</span>
+                          <span className="hidden sm:inline">Late start</span>
+                        </span>
+                      )}
                     </span>
                     <span className="truncate text-xs text-muted-foreground">
                       @{e.handle}
@@ -481,7 +520,7 @@ function Table({
                     "text-right text-base font-semibold tabular-nums",
                     e.gain > 0 ? "text-emerald-400" : e.gain < 0 ? "text-rose-400" : "text-muted-foreground",
                   )}
-                  aria-label={`${formatGain(e.gain)} followers ${PERIOD_LABEL[period]}`}
+                  aria-label={`${formatGain(e.gain)} followers ${when}`}
                 >
                   {formatGain(e.gain)}
                 </span>
@@ -499,11 +538,11 @@ function Table({
 function MyRankBar({
   entry,
   total,
-  period,
+  when,
 }: {
   entry: LeaderboardEntry;
   total: number;
-  period: LeaderboardPeriod;
+  when: string;
 }) {
   const jump = () => {
     const el = document.getElementById(`lb-${entry.handle.toLowerCase()}`);
@@ -518,7 +557,7 @@ function MyRankBar({
       >
         <Avatar handle={entry.handle} name={entry.name} url={entry.avatarUrl} size={36} />
         <span className="flex min-w-0 flex-1 flex-col">
-          <span className="text-xs text-muted-foreground">Your rank {PERIOD_LABEL[period]}</span>
+          <span className="text-xs text-muted-foreground">Your rank {when}</span>
           <span className="truncate text-sm font-semibold text-foreground">
             #{entry.rank} <span className="font-normal text-muted-foreground">of {nf.format(total)}</span>
           </span>
@@ -536,15 +575,24 @@ function ShareButton({
   board,
   me,
   period,
+  when,
 }: {
   board: LeaderboardResponse;
   me: LeaderboardEntry | null;
   period: LeaderboardPeriod;
+  when: string;
 }) {
-  const when = PERIOD_LABEL[period];
-  const text = me
-    ? `I'm #${me.rank} of ${board.entries.length} on the X Growth Leaderboard ${when}, ${formatGain(me.gain)} followers 📈\n\nSee where you rank 👇`
-    : `Who's growing fastest on X ${when}? 📈 Ranked by new followers, not by size.\n\nAdd your @ and see where you rank 👇`;
+  const n = board.week.number;
+  const archived = !board.week.isCurrent && period === "week";
+  const text = archived
+    ? me
+      ? `I finished #${me.rank} of ${board.entries.length} in Week ${n} of the X Growth Leaderboard, ${formatGain(me.gain)} followers 📈\n\nThis week's race is on. Join 👇`
+      : `Week ${n} results of the X Growth Leaderboard 🏁 Ranked by new followers, not by size.\n\nThis week's race is on. Join 👇`
+    : me
+      ? `I'm #${me.rank} of ${board.entries.length} on the X Growth Leaderboard ${when}, ${formatGain(me.gain)} followers 📈\n\nSee where you rank 👇`
+      : `Who's growing fastest on X ${when}? 📈 Ranked by new followers, not by size.\n\nAdd your @ and see where you rank 👇`;
+  const eyebrow =
+    period === "day" ? "TODAY" : archived ? `WEEK ${n} · FINAL` : `WEEK ${n} · ${formatWeekRange(board.week.start, board.week.end).toUpperCase()}`;
 
   return (
     <ShareToXButton
@@ -558,10 +606,99 @@ function ShareButton({
           board,
           me,
           period,
+          periodText: when,
+          eyebrowText: eyebrow,
+          archivedWeek: archived ? n : undefined,
           siteLabel: `${window.location.host}/leaderboard`,
         })
       }
     />
+  );
+}
+
+/** "6d 23h", "5h 12m", "12m" */
+function untilText(ms: number): string {
+  const mins = Math.max(0, Math.floor(ms / 60_000));
+  const d = Math.floor(mins / 1440);
+  const h = Math.floor((mins % 1440) / 60);
+  const m = mins % 60;
+  return d > 0 ? `${d}d ${h}h` : h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
+/** Which week this is, when it ends, and links between weeks. */
+function WeekBar({ board }: { board: LeaderboardResponse }) {
+  const now = useNow(60_000);
+  const { week } = board;
+  const pastWeeks = Array.from({ length: week.currentNumber - 1 }, (_, i) => week.currentNumber - 1 - i).slice(0, 4);
+  const linkClass = "inline-flex items-center whitespace-nowrap rounded-md px-2 py-1 text-xs text-muted-foreground ring-1 ring-inset ring-border transition-colors hover:text-foreground";
+
+  return (
+    <div className="mt-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-xl bg-foreground/[0.03] px-4 py-2.5 ring-1 ring-inset ring-border">
+      <p className="text-sm text-foreground">
+        <span className="font-semibold">Week {week.number}</span>
+        <span className="text-muted-foreground"> · {formatWeekRange(week.start, week.end)}</span>
+        {week.isCurrent ? (
+          <span className="text-muted-foreground">
+            {" "}· ends in <span className="tabular-nums text-orange-300">{untilText(new Date(week.endsAt).getTime() - now)}</span>
+          </span>
+        ) : (
+          <span className="ml-2 rounded-full bg-foreground/[0.06] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Final
+          </span>
+        )}
+      </p>
+      <nav aria-label="Leaderboard weeks" className="flex flex-wrap items-center gap-1.5">
+        {week.isCurrent ? (
+          pastWeeks.length > 0 && (
+            <>
+              <span className="text-xs text-muted-foreground/70">Past weeks:</span>
+              {pastWeeks.map((n) => (
+                <Link key={n} href={`/leaderboard/week/${n}`} className={linkClass}>
+                  Week {n}
+                </Link>
+              ))}
+            </>
+          )
+        ) : (
+          <Link href="/leaderboard" className={linkClass}>
+            Week {week.currentNumber} is live →
+          </Link>
+        )}
+      </nav>
+    </div>
+  );
+}
+
+/** Header for an archived week. */
+function ArchiveHero({ week, board }: { week: number; board: LeaderboardResponse | undefined }) {
+  const winner = board?.entries[0];
+  return (
+    <header className="relative flex flex-col items-center text-center">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -top-24 left-1/2 h-64 w-[36rem] max-w-full -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(255,110,60,0.18),transparent)] blur-2xl"
+      />
+      <span className="relative inline-flex items-center gap-2 rounded-full bg-foreground/[0.05] px-3 py-1 text-xs font-medium text-muted-foreground ring-1 ring-inset ring-border">
+        🏁 Final results
+      </span>
+      <h1 className="relative mt-5 text-4xl font-semibold tracking-[-0.035em] text-foreground sm:text-5xl">
+        Week {week}{" "}
+        <span className="bg-gradient-to-r from-[#ff5a5f] to-[#ff8a00] bg-clip-text text-transparent">results</span>
+      </h1>
+      <p className="relative mt-4 max-w-lg text-[15px] leading-relaxed text-muted-foreground">
+        {board
+          ? `${formatWeekRange(board.week.start, board.week.end)}. ${
+              winner ? `${winner.name} won with ${formatGain(winner.gain)} new followers.` : ""
+            }`
+          : " "}
+      </p>
+      <Link
+        href="/leaderboard"
+        className={cn(ctaClassName, "relative mt-7")}
+      >
+        Join this week&apos;s leaderboard
+      </Link>
+    </header>
   );
 }
 

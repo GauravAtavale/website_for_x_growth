@@ -110,6 +110,8 @@ export function demoLeaderboard(period: LeaderboardPeriod, now = new Date()): Le
       gain: current.get(r.handle)!,
       history: r.series.slice(-8),
       joinedAt: new Date(updatedAt.getTime() - (i % 9) * 86_400_000 * 3).toISOString(),
+      lateStart: false,
+      startDay: null,
     }))
     .sort((a, b) => a.rank - b.rank);
 
@@ -117,6 +119,14 @@ export function demoLeaderboard(period: LeaderboardPeriod, now = new Date()): Le
     period,
     updatedAt: updatedAt.toISOString(),
     rankingsOpenAt: nextSnapshotAfter(now).toISOString(),
+    week: {
+      number: 1,
+      start: "2026-11-02",
+      end: "2026-11-08",
+      isCurrent: true,
+      currentNumber: 1,
+      endsAt: nextSnapshotAfter(now).toISOString(),
+    },
     totalParticipants: entries.length,
     totalGain: entries.reduce((sum, e) => sum + e.gain, 0),
     entries,
