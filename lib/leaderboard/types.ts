@@ -39,6 +39,8 @@ export interface WeekInfo {
   end: string;
   /** True for the week happening now; false for a finished (archived) week. */
   isCurrent: boolean;
+  /** True on the current week's first day (Monday): new joiners are ranked within the hour. */
+  isFirstDay: boolean;
   /** The current week's number, so the page can link past weeks. */
   currentNumber: number;
   /** ISO time the current week ends (next Monday midnight in New York). */

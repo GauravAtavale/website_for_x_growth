@@ -17,6 +17,14 @@ export function nyMidnightOn(day: string): Date {
   return new Date(`${day}T05:00:00Z`);
 }
 
+/** When the hourly tracker's next pass starts: 1 minute past the next hour. */
+export function nextHourlyReading(at = new Date()): Date {
+  const d = new Date(at);
+  d.setUTCMinutes(1, 0, 0);
+  if (d <= at) d.setUTCHours(d.getUTCHours() + 1);
+  return d;
+}
+
 /** The next midnight in New York after `at`. */
 export function nextNyMidnight(at = new Date()): Date {
   const d = new Date(`${nyDay(at)}T12:00:00Z`);

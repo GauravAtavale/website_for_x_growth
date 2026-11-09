@@ -125,6 +125,7 @@ export function demoLeaderboard(period: LeaderboardPeriod, now = new Date()): Le
       end: "2026-11-08",
       isCurrent: true,
       currentNumber: 1,
+      isFirstDay: false,
       endsAt: nextSnapshotAfter(now).toISOString(),
     },
     totalParticipants: entries.length,

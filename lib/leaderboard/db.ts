@@ -1,5 +1,5 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { nextNyMidnight, nyMidnightOn as nextNyMidnightOn, nyDay as nyDayFn } from "./time";
+import { nextHourlyReading, nextNyMidnight, nyMidnightOn as nextNyMidnightOn, nyDay as nyDayFn } from "./time";
 import { addDays, weekOf, weekRange } from "./weeks";
 import type { LeaderboardEntry, LeaderboardPeriod, LeaderboardResponse, PendingAccount } from "./types";
 
@@ -225,6 +225,7 @@ interface AccountRow {
   avatar_url: string | null;
   joined_at: string;
   signup_followers: number | null;
+  signup_checked_at: string | null;
 }
 interface SnapshotRow {
   handle: string;
@@ -251,20 +252,39 @@ function dayGain(series: SnapshotRow[], asOf: string) {
   return { gain: end.followers - base.followers, end, base, late: false };
 }
 
+/** The follower count the sign-up scraper recorded when someone joined. */
+interface SignupReading {
+  followers: number;
+  checkedAt: string;
+}
+
 /**
  * A week's gain as of `asOf` (a day inside the week):
  *   end  = latest reading on or before `asOf`, which must fall inside the week
- *   base = the closing reading of the Sunday before the week (or the last one before it);
- *          for someone who joined during the week, the closing reading of the day they
- *          joined, so their count starts at the following midnight ("late start")
- * Returns null when there's no reading inside the week after the base yet.
+ *   base = the closing reading of the Sunday before the week (or the last one before it).
+ *          Joined on the week's first day (Monday): their sign-up reading, so they count
+ *          from the moment they joined and are ranked at the next hourly reading.
+ *          Joined later in the week: the closing reading of the day they joined, so their
+ *          count starts at the following midnight ("late start").
+ * Returns null when there's no newer reading than the base yet.
  */
-function weekGain(series: SnapshotRow[], weekStart: string, asOf: string) {
+function weekGain(series: SnapshotRow[], weekStart: string, asOf: string, signup: SignupReading | null) {
   const end = atOrBefore(series, asOf);
   if (!end || end.day < weekStart) return null;
-  const base = atOrBefore(series, addDays(weekStart, -1)) ?? series.find((s) => s.day >= weekStart);
-  if (!base || base.day >= end.day) return null;
-  return { gain: end.followers - base.followers, end, base, late: base.day >= weekStart };
+
+  const before = atOrBefore(series, addDays(weekStart, -1));
+  if (before) return { gain: end.followers - before.followers, end, base: before, late: false };
+
+  if (signup && nyDay(new Date(signup.checkedAt)) === weekStart) {
+    // Day-one joiner: needs an hourly reading taken after the sign-up reading.
+    if (end.checked_at <= signup.checkedAt) return null;
+    const base: SnapshotRow = { handle: end.handle, day: weekStart, followers: signup.followers, checked_at: signup.checkedAt };
+    return { gain: end.followers - base.followers, end, base, late: false };
+  }
+
+  const first = series.find((s) => s.day >= weekStart);
+  if (!first || first.day >= end.day) return null;
+  return { gain: end.followers - first.followers, end, base: first, late: true };
 }
 
 function rankMap(gains: Array<{ handle: string; gain: number; followers: number }>) {
@@ -294,18 +314,19 @@ export async function buildLeaderboard(
   const accounts = (
     await db
       .prepare(
-        `SELECT a.handle, a.name, a.avatar_url, a.joined_at, p.followers AS signup_followers
+        `SELECT a.handle, a.name, a.avatar_url, a.joined_at, p.followers AS signup_followers,
+                p.checked_at AS signup_checked_at
          FROM accounts a LEFT JOIN signup_profiles p ON p.handle = a.handle
          WHERE a.status = 'active' ORDER BY a.joined_at`,
       )
       .all<AccountRow>()
   ).results;
 
-  const firstDay = period === "week" ? addDays(weekStart, -BASELINE_LOOKBACK_DAYS) : addDays(today, -HISTORY_POINTS - 2);
+  const fromDay = period === "week" ? addDays(weekStart, -BASELINE_LOOKBACK_DAYS) : addDays(today, -HISTORY_POINTS - 2);
   const snapshots = (
     await db
       .prepare(`SELECT handle, day, followers, checked_at FROM snapshots WHERE day >= ? AND day <= ? ORDER BY day`)
-      .bind(firstDay, lastDay)
+      .bind(fromDay, lastDay)
       .all<SnapshotRow>()
   ).results;
   const latestDay = snapshots.length ? snapshots[snapshots.length - 1].day : null;
@@ -316,19 +337,24 @@ export async function buildLeaderboard(
     (byHandle.get(key) ?? byHandle.set(key, []).get(key)!).push(s);
   }
 
-  const gainOf = (series: SnapshotRow[], asOf: string) =>
-    period === "week" ? weekGain(series, weekStart, asOf) : dayGain(series, asOf);
+  const signupOf = (a: AccountRow): SignupReading | null =>
+    a.signup_followers !== null && a.signup_checked_at
+      ? { followers: a.signup_followers, checkedAt: a.signup_checked_at }
+      : null;
+  const gainOf = (series: SnapshotRow[], asOf: string, account: AccountRow) =>
+    period === "week" ? weekGain(series, weekStart, asOf, signupOf(account)) : dayGain(series, asOf);
   // Rank movement compares with the day before; on a week's first day there's nothing to compare.
   const previousDay = latestDay ? addDays(latestDay, -1) : null;
   const comparePrevious = previousDay !== null && (period === "day" || previousDay >= weekStart);
 
   const ranked: Array<{ account: AccountRow; series: SnapshotRow[]; g: NonNullable<ReturnType<typeof gainOf>> }> = [];
+  const firstDay = isCurrent && today === weekStart;
   const pending: PendingAccount[] = [];
   const previous: Array<{ handle: string; gain: number; followers: number }> = [];
 
   for (const account of accounts) {
     const series = byHandle.get(account.handle.toLowerCase()) ?? [];
-    const g = latestDay ? gainOf(series, latestDay) : null;
+    const g = latestDay ? gainOf(series, latestDay, account) : null;
     if (!g) {
       // Past weeks only list who took part; waiting lists belong to the current week.
       if (isCurrent) {
@@ -344,7 +370,7 @@ export async function buildLeaderboard(
     }
     ranked.push({ account, series, g });
     if (comparePrevious) {
-      const prev = gainOf(series, previousDay!);
+      const prev = gainOf(series, previousDay!, account);
       if (prev) previous.push({ handle: account.handle, gain: prev.gain, followers: prev.end.followers });
     }
   }
@@ -360,6 +386,8 @@ export async function buildLeaderboard(
         period === "week"
           ? series.filter((s) => s.day >= g.base.day && s.day <= g.end.day)
           : series.filter((s) => s.day <= g.end.day).slice(-HISTORY_POINTS);
+      // A day-one joiner's start isn't a saved day row; put it at the front of the trend.
+      if (period === "week" && trend[0]?.checked_at !== g.base.checked_at) trend.unshift(g.base);
       return {
         rank: currentRanks.get(key)!,
         previousRank: comparePrevious ? (previousRanks.get(key) ?? null) : null,
@@ -389,10 +417,12 @@ export async function buildLeaderboard(
       end: weekEnd,
       isCurrent,
       currentNumber: currentWeek,
+      isFirstDay: firstDay,
       endsAt: nextNyMidnightOn(addDays(weekRange(currentWeek).end, 1)).toISOString(),
     },
     updatedAt,
-    rankingsOpenAt: nextNyMidnight(now).toISOString(),
+    // On a week's first day new joiners are ranked at the next hourly reading (1 minute past the hour).
+    rankingsOpenAt: (firstDay ? nextHourlyReading(now) : nextNyMidnight(now)).toISOString(),
     totalParticipants: isCurrent ? accounts.length : entries.length,
     totalGain: entries.reduce((sum, e) => sum + e.gain, 0),
     entries,

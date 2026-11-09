@@ -126,6 +126,7 @@ export function LeaderboardApp({ archiveWeek }: { archiveWeek?: number } = {}) {
           }}
           myHandle={myHandle}
           alreadyRanked={Boolean(me)}
+          firstDay={Boolean(board?.week.isFirstDay && board.week.isCurrent)}
         />
       )}
 
@@ -200,6 +201,7 @@ export function LeaderboardApp({ archiveWeek }: { archiveWeek?: number } = {}) {
               joinOrder={pendingRows.map((r) => r.order)}
               openAt={board.rankingsOpenAt}
               myHandle={myHandle}
+              firstDay={board.week.isFirstDay}
             />
           )
         ) : (
@@ -226,6 +228,7 @@ export function LeaderboardApp({ archiveWeek }: { archiveWeek?: number } = {}) {
             joinOrder={pendingRows.map((r) => r.order)}
             openAt={board.rankingsOpenAt}
             myHandle={myHandle}
+            firstDay={board.week.isFirstDay}
           />
         )}
       </section>
@@ -241,11 +244,17 @@ function Hero({
   onJoined,
   myHandle,
   alreadyRanked,
+  firstDay,
 }: {
   onJoined: (handle: string) => void;
   myHandle: string | null;
   alreadyRanked: boolean;
+  firstDay: boolean;
 }) {
+  // Week starts on Monday: joiners that day are counted from sign-up and ranked within the hour.
+  const rankedWhen = firstDay
+    ? "You'll be ranked after the next hourly update."
+    : "You'll be ranked from tomorrow, counting from midnight.";
   const [value, setValue] = useState("");
   const [state, setState] = useState<"idle" | "busy" | "done" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
@@ -276,7 +285,7 @@ function Hero({
       setMessage(
         body.status === "already_joined"
           ? `@${body.handle} is already on the board.`
-          : `You're in, @${body.handle}. You'll be ranked from tomorrow.`,
+          : `You're in, @${body.handle}. ${rankedWhen}`,
       );
     } catch (err) {
       setState("error");
@@ -347,7 +356,7 @@ function Hero({
         >
           {message ??
             (myHandle && !alreadyRanked
-              ? `Tracking @${myHandle}. You'll be ranked from tomorrow.`
+              ? `Tracking @${myHandle}. ${rankedWhen}`
               : "No sign-up. Your profile just needs to be public.")}
         </p>
       </div>

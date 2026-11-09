@@ -32,7 +32,7 @@ function hms(ms: number) {
 }
 
 /** Ticking countdown to when rankings open (next midnight in New York). */
-function Countdown({ openAt, compact }: { openAt: string; compact?: boolean }) {
+function Countdown({ openAt, compact, hourly }: { openAt: string; compact?: boolean; hourly?: boolean }) {
   const now = useNow(1000);
   const left = new Date(openAt).getTime() - now;
   const opened = left <= 0;
@@ -90,7 +90,8 @@ function Countdown({ openAt, compact }: { openAt: string; compact?: boolean }) {
             ))}
           </div>
           <p className="relative mt-3 text-sm text-muted-foreground">
-            First rankings at {openLabel} (midnight New York time). Until then, here&apos;s who you&apos;re up against.
+            First rankings at {openLabel} ({hourly ? "the next hourly update" : "midnight New York time"}). Until then,
+            here&apos;s who you&apos;re up against.
           </p>
         </>
       )}
@@ -109,11 +110,14 @@ export function Competitors({
   myHandle,
   mode,
   joinOrder,
+  firstDay = false,
 }: {
   accounts: PendingAccount[];
   openAt: string;
   myHandle: string | null;
   mode: "prelaunch" | "newcomers";
+  /** First day of the week: newcomers are ranked at the next hourly update, not at midnight. */
+  firstDay?: boolean;
   /** Each account's 0-based position among everyone waiting (kept when a search filters the list). */
   joinOrder: number[];
 }) {
@@ -121,7 +125,7 @@ export function Competitors({
   const now = useNow(60_000);
   return (
     <div className={prelaunch ? "" : "mt-10"}>
-      {prelaunch && <Countdown openAt={openAt} />}
+      {prelaunch && <Countdown openAt={openAt} hourly={firstDay} />}
 
       <div className={cn("flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1", prelaunch ? "mt-6" : "")}>
         <h2 className="text-sm font-medium text-foreground">
@@ -133,12 +137,14 @@ export function Competitors({
         {prelaunch ? (
           <span className="text-xs text-muted-foreground">In the order they joined</span>
         ) : (
-          <Countdown openAt={openAt} compact />
+          <Countdown openAt={openAt} compact hourly={firstDay} />
         )}
       </div>
       {!prelaunch && (
         <p className="mt-1 text-xs text-muted-foreground">
-          Ranked from their second day on the board, after midnight New York time.
+          {firstDay
+            ? "Joined on the first day of the week: counted from when they joined, ranked at the next hourly update."
+            : "Joined during the week: counted from the midnight after they join (New York time)."}
         </p>
       )}
 
